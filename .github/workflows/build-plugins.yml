@@ -23,16 +23,16 @@ jobs:
       - name: Generate plugin list
         id: set-matrix
         run: |
-          # List all subdirectories in Examples/
           echo "Scanning for plugins in Examples/"
           plugins=$(ls -1 Examples)
           echo "Plugins found: $plugins"
           
-          # Check each plugin directory for the presence of a .sln file
+          # Check each plugin directory for the presence of a .sln file using find
           valid_plugins=()
           for plugin in $plugins; do
             echo "Checking for .sln file in Examples/${plugin}/"
-            if [ -f "Examples/${plugin}/*.sln" ]; then
+            sln_file=$(find Examples/${plugin} -maxdepth 1 -type f -name "*.sln")
+            if [ -n "$sln_file" ]; then
               valid_plugins+=("\"${plugin}\"")
               echo "Valid plugin found: ${plugin}"
             else
