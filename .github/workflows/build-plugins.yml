@@ -1,4 +1,4 @@
-name: Build Plugins Individually
+name: Build All Plugins
 
 on:
   push:
@@ -52,7 +52,7 @@ jobs:
           cmake --build build --config Release
 
       - name: Upload VST3 (if found)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4.6.2  # ✅ Updated to v4.6.2
         with:
           name: ${{ matrix.plugin }}-vst3
           path: |
