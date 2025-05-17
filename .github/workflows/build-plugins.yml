@@ -22,22 +22,11 @@ jobs:
           restore-keys: |
             vst3-sdk-${{ runner.os }}-v1-
           
-      - name: Download and Extract VST3 SDK if Cache Missed
+      - name: Clone VST3 SDK if Cache Missed
         if: steps.cache-sdk.outputs.cache-hit != 'true'
-        shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-
-          # If the VST3 SDK was not restored from cache, download it
-          Write-Host "Downloading VST3 SDK from GitHub"
-          $url = "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/develop.zip"
-          Invoke-WebRequest -Uri $url -OutFile "VST3_SDK.zip"
-
-          # Extract the VST3 SDK to the Dependencies directory
-          Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}/Dependencies" -Force
-
-          # Rename the extracted folder to "VST3_SDK"
-          Rename-Item -Path "${{ github.workspace }}/Dependencies/vst3sdk-develop" -NewName "VST3_SDK"
+          # Clone the VST3 SDK repository
+          git clone https://github.com/steinbergmedia/vst3sdk.git ${{ github.workspace }}/Dependencies/VST3_SDK
 
   generate-matrix:
     needs: cache-vst3-sdk
@@ -80,7 +69,7 @@ jobs:
 
       - name: Set VST3 SDK environment variable
         run: |
-          # Set the environment variable to point to the downloaded SDK
+          # Set the environment variable to point to the cloned SDK
           setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
 
       - name: Restore NuGet packages
