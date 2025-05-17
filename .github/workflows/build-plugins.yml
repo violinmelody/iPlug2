@@ -1,11 +1,11 @@
-name: Build All Plugins
+name: Build Plugins with Visual Studio Projects
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # 👈 Enables manual run
+  workflow_dispatch:  # Enables manual run
 
 jobs:
   generate-matrix:
@@ -19,11 +19,19 @@ jobs:
         id: set-matrix
         run: |
           plugins=$(ls -1 Examples | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "matrix={\"plugin\":$plugins}" >> $GITHUB_OUTPUT
+          # Check each plugin directory for the presence of a .vcxproj file
+          valid_plugins=()
+          for plugin in $plugins; do
+            if [ -f "Examples/${plugin}/*.vcxproj" ]; then
+              valid_plugins+=("${plugin}")
+            fi
+          done
+          echo "matrix={\"plugin\":${valid_plugins[@]}}" >> $GITHUB_OUTPUT
 
   build:
     needs: generate-matrix
-    runs-on: ubuntu-latest
+    runs-on: windows-latest  # Build on Windows to use Visual Studio
+
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
@@ -33,26 +41,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up CMake
-        uses: jwlawson/actions-setup-cmake@v1
+      - name: Set up Visual Studio
+        uses: microsoft/setup-msbuild@v1.0.2
         with:
-          cmake-version: '3.25.0'
+          vs-version: 'latest'  # Use the latest Visual Studio version
 
-      - name: Install dependencies
+      - name: Install dependencies (for Windows)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential \
-            libx11-dev libfreetype6-dev libxcursor-dev \
-            libxrandr-dev libxinerama-dev libxext-dev
+          choco install visualstudio2019-workload-vctools # Ensure you have necessary tools
 
-      - name: Configure and build ${{ matrix.plugin }}
+      - name: Build the plugin using Visual Studio project file
         run: |
           cd Examples/${{ matrix.plugin }}
-          cmake -B build -DCMAKE_BUILD_TYPE=Release .
-          cmake --build build --config Release
+          msbuild ${matrix.plugin}.vcxproj /p:Configuration=Release
 
       - name: Upload VST3 (if found)
-        uses: actions/upload-artifact@v4.6.2  # ✅ Updated to v4.6.2
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: ${{ matrix.plugin }}-vst3
           path: |
