@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
   generate-matrix:
@@ -18,6 +18,7 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
+          # Find .sln files that are exactly at Examples/PluginName/PluginName.sln
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           
           if [ -z "$plugins" ]; then
@@ -45,25 +46,49 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Set up VST3 SDK (clone from GitHub)
+      - name: Cache VST3 SDK
+        id: cache-vst3-sdk
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/Dependencies/VST3_SDK
+          key: vst3-sdk-${{ runner.os }}-v1
+          restore-keys: |
+            vst3-sdk-${{ runner.os }}-
+
+      - name: Set up VST3 SDK (clone from GitHub if not cached)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          # Clone the VST3 SDK repository
-          git clone --recursive https://github.com/steinbergmedia/vst3sdk.git "${{ github.workspace }}\Dependencies\vst3sdk"
+          # If the VST3 SDK was not restored from cache, download it
+          if (-not (Test-Path "${{ github.workspace }}\Dependencies\VST3_SDK")) {
+            Write-Host "Downloading VST3 SDK from GitHub"
+            $url = "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/develop.zip"
+            Invoke-WebRequest -Uri $url -OutFile "VST3_SDK.zip"
 
-          # Rename the folder to VST3_SDK
-          Rename-Item -Path "${{ github.workspace }}\Dependencies\vst3sdk" -NewName "VST3_SDK"
+            # Extract the VST3 SDK to the Dependencies directory
+            Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}/Dependencies" -Force
+
+            # Rename the extracted folder to "VST3_SDK"
+            Rename-Item -Path "${{ github.workspace }}/Dependencies/vst3sdk-develop" -NewName "VST3_SDK"
+          } else {
+            Write-Host "VST3 SDK found in cache, skipping download."
+          }
+
+      - name: Set VST3 SDK environment variable
+        run: |
+          # Set the environment variable to point to the downloaded SDK
+          setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
+
+      - name: Restore NuGet packages
+        run: |
+          nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
-          cd Examples\${{ matrix.plugin }}
-
-          # Set VST3 SDK environment variable
-          setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
-
-          # Build with MSBuild
+          cd Examples/${{ matrix.plugin }}
+          
+          # Use MSBuild to build the solution
           msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
 
       - name: Upload VST3 Artifact
