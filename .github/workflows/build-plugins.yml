@@ -5,7 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch:
 
 jobs:
   cache-vst3-sdk:
@@ -21,11 +21,10 @@ jobs:
           key: vst3-sdk-${{ runner.os }}-v1-${{ hashFiles('**/VST3_SDK/**') }}
           restore-keys: |
             vst3-sdk-${{ runner.os }}-v1-
-          
+
       - name: Clone VST3 SDK if Cache Missed
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
-          # Clone the VST3 SDK repository if it's not cached
           git clone https://github.com/steinbergmedia/vst3sdk.git ${{ github.workspace }}/Dependencies/VST3_SDK
 
   generate-matrix:
@@ -39,15 +38,11 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          # Find all .sln files under Examples/PluginName/PluginName.sln and generate a matrix
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
-          
           if [ -z "$plugins" ]; then
             echo "No valid .sln files found."
             exit 1
           fi
-
-          # Create a matrix from the found plugins
           matrix="{\"plugin\":[${plugins}]}"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
@@ -70,31 +65,24 @@ jobs:
 
       - name: Set VST3 SDK environment variable
         run: |
-          # Set the environment variable to point to the cloned SDK on Windows
           setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
 
       - name: Restore NuGet packages
         run: |
           nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
 
-      - name: Check directory structure
-        run: |
-          cd Examples/${{ matrix.plugin }}/projects
-          dir
-
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
           cd Examples/${{ matrix.plugin }}/projects
-          
-          # Check if the plugin's vst3 project file exists (correct PowerShell syntax)
-          if (Test-Path "IPlugEffect-vst3.vcxproj") {
-            echo "Found the .vcxproj file: IPlugEffect-vst3.vcxproj"
-            # Build the VST3 plugin using the appropriate .vcxproj file
-            msbuild "IPlugEffect-vst3.vcxproj" /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3 /p:SolutionDir="${{ github.workspace }}\Examples\${{ matrix.plugin }}\projects\"
+          $projName = "${{ matrix.plugin }}-vst3.vcxproj"
+          if (Test-Path $projName) {
+            echo "Found the .vcxproj file: $projName"
+            msbuild $projName /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3 /p:SolutionDir="${{ github.workspace }}\Examples\${{ matrix.plugin }}\"
           } else {
-            echo "Error: .vcxproj file not found: IPlugEffect-vst3.vcxproj"
+            echo "Error: .vcxproj file not found: $projName"
             exit 1
           }
+        shell: pwsh
 
       - name: Upload VST3 Artifact
         uses: actions/upload-artifact@v4
