@@ -18,13 +18,18 @@ jobs:
       - name: Generate plugin list
         id: set-matrix
         run: |
-          plugins=$(ls -1 Examples | jq -R -s -c 'split("\n") | map(select(length > 0))')
-
+          # List all subdirectories in Examples/
+          echo "Listing directories in Examples/"
+          plugins=$(ls -1 Examples)
+          echo "Plugins found: $plugins"
+          
           # Check each plugin directory for the presence of a .sln file
           valid_plugins=()
           for plugin in $plugins; do
+            echo "Checking for .sln file in Examples/${plugin}/"
             if [ -f "Examples/${plugin}/*.sln" ]; then
               valid_plugins+=("\"${plugin}\"")
+              echo "Valid plugin found: ${plugin}"
             fi
           done
 
