@@ -19,14 +19,18 @@ jobs:
         id: set-matrix
         run: |
           plugins=$(ls -1 Examples | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          
           # Check each plugin directory for the presence of a .vcxproj file
           valid_plugins=()
           for plugin in $plugins; do
             if [ -f "Examples/${plugin}/*.vcxproj" ]; then
-              valid_plugins+=("${plugin}")
+              valid_plugins+=("\"${plugin}\"")
             fi
           done
-          echo "matrix={\"plugin\":${valid_plugins[@]}}" >> $GITHUB_OUTPUT
+
+          # Format the matrix output correctly as a JSON string
+          matrix=$(echo "[${valid_plugins[*]}]" | sed 's/ /,/g')  # Join plugin names with commas
+          echo "matrix=${matrix}" >> $GITHUB_ENV
 
   build:
     needs: generate-matrix
@@ -34,7 +38,8 @@ jobs:
 
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+      matrix:
+        plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}  # Correctly handle matrix
 
     name: Build ${{ matrix.plugin }}
 
