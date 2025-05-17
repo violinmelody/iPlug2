@@ -46,6 +46,12 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
+      - name: Clean up existing VST3_SDK folder (if exists)
+        run: |
+          if [ -d "Dependencies/IPlug/VST3_SDK" ]; then
+            rm -rf Dependencies/IPlug/VST3_SDK
+          fi
+
       - name: Clone Steinberg VST3 SDK
         run: |
           git clone --depth 1 https://github.com/steinbergmedia/vst3sdk.git Dependencies/IPlug/VST3_SDK
