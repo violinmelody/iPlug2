@@ -50,15 +50,19 @@ jobs:
         run: |
           # Download and set up the VST3 SDK
           mkdir -p ${{ github.workspace }}/Dependencies/VST3_SDK
+          
+          # Download the VST3 SDK (using the simpler method)
           curl -L -o VST3_SDK.zip https://download.steinberg.net/sdk_downloads/VST3_SDK_3.6.14.1155.zip  # Update URL as needed
-          unzip VST3_SDK.zip -d ${{ github.workspace }}/Dependencies/VST3_SDK
+          
+          # Unzip the downloaded SDK
+          unzip -q VST3_SDK.zip -d ${{ github.workspace }}/Dependencies/VST3_SDK
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
           cd Examples/${{ matrix.plugin }}
           
           # Set up the include and lib directories for the VST3 SDK
-          setx VST3_SDK_PATH "${{ github.workspace }}/Dependencies/VST3_SDK"
+          setx VST3_SDK_PATH "${{ github.workspace }}/Dependencies/VST3_SDK/VST3_SDK"
           
           # Use MSBuild to build the solution
           msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
