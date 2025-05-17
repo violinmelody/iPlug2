@@ -18,6 +18,7 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
+          # Find .sln files that are exactly at Examples/PluginName/PluginName.sln
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           
           if [ -z "$plugins" ]; then
@@ -45,24 +46,18 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Download VST3 SDK
-        shell: pwsh
+      - name: Clone Steinberg VST3 SDK
         run: |
-          if (-not (Test-Path "Dependencies/IPlug")) {
-            New-Item -ItemType Directory -Path "Dependencies/IPlug" | Out-Null
-          }
-          Invoke-WebRequest -Uri "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/main.zip" -OutFile "vst3sdk.zip"
-          Expand-Archive -Path "vst3sdk.zip" -DestinationPath "."
-          Move-Item -Path "vst3sdk-main" -Destination "Dependencies/IPlug/VST3_SDK"
+          git clone --depth 1 https://github.com/steinbergmedia/vst3sdk.git Dependencies/IPlug/VST3_SDK
 
       - name: Build plugin (${{ matrix.plugin }})
         run: |
           cd Examples/${{ matrix.plugin }}
-          msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release /p:Platform=x64
+          msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
 
       - name: Upload VST3 Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-vst3
           path: |
-            **\*.vst3
+            **/*.vst3
