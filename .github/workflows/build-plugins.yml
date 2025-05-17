@@ -5,86 +5,55 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:  # Enables manual run
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
   generate-matrix:
-    runs-on: ubuntu-latest  # Ubuntu is used for generating the matrix; this doesn't affect the build environment
-
+    runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
-
     steps:
       - uses: actions/checkout@v3
 
-      - name: List contents of Examples/
-        run: |
-          echo "Listing directories in Examples/"
-          ls -R Examples/
-
-      - name: Generate plugin list
+      - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          echo "Scanning for plugins in Examples/"
-          plugins=$(ls -1 Examples)
-          echo "Plugins found: $plugins"
+          # Find .sln files that are exactly at Examples/PluginName/PluginName.sln
+          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           
-          # Check each plugin directory for the presence of a .sln file using find
-          valid_plugins=()
-          for plugin in $plugins; do
-            echo "Checking for .sln files in Examples/${plugin}/"
-            
-            # Find all .sln files in the plugin folder and its subdirectories
-            sln_files=$(find Examples/${plugin} -type f -name "*.sln")
-            if [ -n "$sln_files" ]; then
-              valid_plugins+=("\"${plugin}\"")
-              echo "Valid plugin found: ${plugin}"
-            else
-              echo "No .sln files found in Examples/${plugin}/"
-            fi
-          done
-
-          # If no valid plugins are found, print a warning
-          if [ ${#valid_plugins[@]} -eq 0 ]; then
-            echo "No plugins found with .sln files!"
+          if [ -z "$plugins" ]; then
+            echo "No valid .sln files found."
             exit 1
           fi
 
-          # Format the matrix output correctly as a JSON string
-          matrix=$(echo "[${valid_plugins[*]}]" | sed 's/ /,/g')  # Join plugin names with commas
-          echo "matrix=${matrix}" >> $GITHUB_ENV
+          matrix="{\"plugin\":[${plugins}]}"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   build:
     needs: generate-matrix
-    runs-on: windows-latest  # We need to use a Windows runner to build Visual Studio solutions
+    runs-on: windows-latest
 
     strategy:
       fail-fast: false
       matrix:
-        plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}  # Correctly handle matrix
+        plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}
 
     name: Build ${{ matrix.plugin }}
 
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up Visual Studio
+      - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
-        with:
-          vs-version: 'latest'  # Use the latest Visual Studio version
 
-      - name: Install dependencies (for Windows)
-        run: |
-          choco install visualstudio2019-workload-vctools # Ensure you have necessary tools
-
-      - name: Build the plugin using Visual Studio solution file
+      - name: Build plugin (${{ matrix.plugin }})
         run: |
           cd Examples/${{ matrix.plugin }}
-          msbuild ${matrix.plugin}.sln /p:Configuration=Release
+          msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
 
-      - name: Upload VST3 (if found)
-        uses: actions/upload-artifact@v4.6.2
+      - name: Upload VST3 Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-vst3
           path: |
-            Examples/${{ matrix.plugin }}/build/**/*.vst3
+            **/*.vst3
