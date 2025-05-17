@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # Allows manual trigger
+  workflow_dispatch: # Manual trigger
 
 jobs:
   generate-matrix:
@@ -18,7 +18,7 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          # Find .sln files that are exactly at Examples/PluginName/PluginName.sln
+          # Find .sln files in Examples/<Plugin>/<Plugin>.sln
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           
           if [ -z "$plugins" ]; then
@@ -47,31 +47,36 @@ jobs:
         uses: microsoft/setup-msbuild@v1.0.2
 
       - name: Set up VST3 SDK (latest version)
+        shell: pwsh
         run: |
-          # PowerShell script to fetch the latest VST3 SDK version automatically
-          $sdkUrl = Invoke-WebRequest -Uri "https://github.com/steinbergmedia/vst3sdk/releases/latest" | Select-String -Pattern 'href="([^"]+VST3_SDK[^"]+)"' | ForEach-Object { $_.Matches.Groups[1].Value }
+          $ErrorActionPreference = 'Stop'
 
-          if ($sdkUrl -eq $null) {
-            Write-Error "Failed to find the VST3 SDK download link."
+          # Fetch latest release info
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/steinbergmedia/vst3sdk/releases/latest"
+
+          # Find the first ZIP asset
+          $asset = $release.assets | Where-Object { $_.name -like "*.zip" }
+
+          if (-not $asset) {
+            Write-Error "Could not find a ZIP asset in the latest release."
             exit 1
           }
 
-          # Construct the full URL for the latest VST3 SDK
-          $fullUrl = "https://github.com$sdkUrl"
-          Write-Host "Downloading SDK from $fullUrl"
+          $url = $asset.browser_download_url
+          Write-Host "Downloading SDK from $url"
 
-          # Download and unzip the SDK
-          Invoke-WebRequest -Uri $fullUrl -OutFile "VST3_SDK.zip"
-          Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}/Dependencies/VST3_SDK" -Force
+          # Download and unzip
+          Invoke-WebRequest -Uri $url -OutFile "VST3_SDK.zip"
+          Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}\Dependencies\VST3_SDK" -Force
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
-          cd Examples/${{ matrix.plugin }}
-          
-          # Set up the include and lib directories for the VST3 SDK
-          setx VST3_SDK_PATH "${{ github.workspace }}/Dependencies/VST3_SDK/VST3_SDK"
-          
-          # Use MSBuild to build the solution
+          cd Examples\${{ matrix.plugin }}
+
+          # Set the VST3 SDK path env var (adjust if needed)
+          setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK\VST3_SDK"
+
+          # Build the solution
           msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
 
       - name: Upload VST3 Artifact
