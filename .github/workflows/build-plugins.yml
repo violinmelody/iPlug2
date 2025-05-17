@@ -1,0 +1,58 @@
+name: Build Plugins Individually
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  generate-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Generate plugin list
+        id: set-matrix
+        run: |
+          plugins=$(ls -1 Examples | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "matrix={\"plugin\":$plugins}" >> $GITHUB_OUTPUT
+
+  build:
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+
+    name: Build ${{ matrix.plugin }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up CMake
+        uses: jwlawson/actions-setup-cmake@v1
+        with:
+          cmake-version: '3.25.0'
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential \
+            libx11-dev libfreetype6-dev libxcursor-dev \
+            libxrandr-dev libxinerama-dev libxext-dev
+
+      - name: Configure and build ${{ matrix.plugin }}
+        run: |
+          cd Examples/${{ matrix.plugin }}
+          cmake -B build -DCMAKE_BUILD_TYPE=Release .
+          cmake --build build --config Release
+
+      - name: Upload VST3 (if found)
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.plugin }}-vst3
+          path: |
+            Examples/${{ matrix.plugin }}/build/**/*.vst3
