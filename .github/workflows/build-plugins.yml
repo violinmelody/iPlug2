@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # Manual trigger
+  workflow_dispatch:
 
 jobs:
   generate-matrix:
@@ -18,7 +18,6 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          # Find .sln files in Examples/<Plugin>/<Plugin>.sln
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           
           if [ -z "$plugins" ]; then
@@ -46,29 +45,29 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Set up VST3 SDK (download from GitHub main branch)
+      - name: Set up VST3 SDK (download from develop branch)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          # Download the main branch as zip (Steinberg does not use releases)
-          $url = "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/main.zip"
+          # Use the correct branch: develop
+          $url = "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/develop.zip"
           Write-Host "Downloading VST3 SDK from $url"
 
           Invoke-WebRequest -Uri $url -OutFile "VST3_SDK.zip"
 
-          # Extract and rename
+          # Extract into Dependencies and rename the folder
           Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}\Dependencies" -Force
-          Rename-Item -Path "${{ github.workspace }}\Dependencies\vst3sdk-main" -NewName "VST3_SDK"
+          Rename-Item -Path "${{ github.workspace }}\Dependencies\vst3sdk-develop" -NewName "VST3_SDK"
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
           cd Examples\${{ matrix.plugin }}
 
-          # Set VST3_SDK_PATH environment variable
+          # Set VST3 SDK environment variable
           setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
 
-          # Build the solution using MSBuild
+          # Build with MSBuild
           msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
 
       - name: Upload VST3 Artifact
