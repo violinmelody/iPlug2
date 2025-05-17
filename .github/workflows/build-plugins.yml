@@ -5,7 +5,7 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
   generate-matrix:
@@ -19,11 +19,14 @@ jobs:
         id: set-matrix
         run: |
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
+          
           if [ -z "$plugins" ]; then
             echo "No valid .sln files found."
             exit 1
           fi
-          echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
+
+          matrix="{\"plugin\":[${plugins}]}"
+          echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   build:
     needs: generate-matrix
@@ -40,23 +43,26 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v1.0.2
 
       - name: Download VST3 SDK
+        shell: pwsh
         run: |
-          mkdir -p Dependencies/IPlug
-          curl -L https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/main.zip -o vst3sdk.zip
-          unzip vst3sdk.zip
-          mv vst3sdk-main Dependencies/IPlug/VST3_SDK
+          if (-not (Test-Path "Dependencies/IPlug")) {
+            New-Item -ItemType Directory -Path "Dependencies/IPlug" | Out-Null
+          }
+          Invoke-WebRequest -Uri "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/main.zip" -OutFile "vst3sdk.zip"
+          Expand-Archive -Path "vst3sdk.zip" -DestinationPath "."
+          Move-Item -Path "vst3sdk-main" -Destination "Dependencies/IPlug/VST3_SDK"
 
-      - name: Build VST3 plugin
+      - name: Build plugin (${{ matrix.plugin }})
         run: |
           cd Examples/${{ matrix.plugin }}
-          msbuild projects/${{ matrix.plugin }}-vst3.vcxproj /p:Configuration=Release /t:Build
+          msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release /p:Platform=x64
 
-      - name: Upload VST3 artifact
+      - name: Upload VST3 Artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-vst3
           path: |
-            **/*.vst3
+            **\*.vst3
