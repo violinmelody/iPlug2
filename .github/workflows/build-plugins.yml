@@ -1,4 +1,4 @@
-name: Build Plugins with Visual Studio Solutions
+name: Build VST3 Plugins
 
 on:
   push:
@@ -46,20 +46,21 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Clean up existing VST3_SDK folder (if exists)
-        shell: pwsh
+      - name: Set up VST3 SDK
         run: |
-          if (Test-Path "Dependencies/IPlug/VST3_SDK") {
-            Remove-Item -Recurse -Force "Dependencies/IPlug/VST3_SDK"
-          }
+          # Download and set up the VST3 SDK
+          mkdir -p ${{ github.workspace }}/Dependencies/VST3_SDK
+          curl -L -o VST3_SDK.zip https://download.steinberg.net/sdk_downloads/VST3_SDK_3.6.14.1155.zip  # Update URL as needed
+          unzip VST3_SDK.zip -d ${{ github.workspace }}/Dependencies/VST3_SDK
 
-      - name: Clone Steinberg VST3 SDK
-        run: |
-          git clone --depth 1 https://github.com/steinbergmedia/vst3sdk.git Dependencies/IPlug/VST3_SDK
-
-      - name: Build plugin (${{ matrix.plugin }})
+      - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
           cd Examples/${{ matrix.plugin }}
+          
+          # Set up the include and lib directories for the VST3 SDK
+          setx VST3_SDK_PATH "${{ github.workspace }}/Dependencies/VST3_SDK"
+          
+          # Use MSBuild to build the solution
           msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
 
       - name: Upload VST3 Artifact
