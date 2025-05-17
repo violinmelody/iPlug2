@@ -9,9 +9,11 @@ on:
 
 jobs:
   generate-matrix:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest  # Ubuntu is used for generating the matrix; this doesn't affect the build environment
+
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+
     steps:
       - uses: actions/checkout@v3
 
@@ -19,7 +21,7 @@ jobs:
         run: |
           echo "Listing directories in Examples/"
           ls -R Examples/
-          
+
       - name: Generate plugin list
         id: set-matrix
         run: |
@@ -30,13 +32,15 @@ jobs:
           # Check each plugin directory for the presence of a .sln file using find
           valid_plugins=()
           for plugin in $plugins; do
-            echo "Checking for .sln file in Examples/${plugin}/"
-            sln_file=$(find Examples/${plugin} -maxdepth 1 -type f -name "*.sln")
-            if [ -n "$sln_file" ]; then
+            echo "Checking for .sln files in Examples/${plugin}/"
+            
+            # Find all .sln files in the plugin folder and its subdirectories
+            sln_files=$(find Examples/${plugin} -type f -name "*.sln")
+            if [ -n "$sln_files" ]; then
               valid_plugins+=("\"${plugin}\"")
               echo "Valid plugin found: ${plugin}"
             else
-              echo "No .sln file found in Examples/${plugin}/"
+              echo "No .sln files found in Examples/${plugin}/"
             fi
           done
 
@@ -52,7 +56,7 @@ jobs:
 
   build:
     needs: generate-matrix
-    runs-on: windows-latest  # Build on Windows to use Visual Studio
+    runs-on: windows-latest  # We need to use a Windows runner to build Visual Studio solutions
 
     strategy:
       fail-fast: false
