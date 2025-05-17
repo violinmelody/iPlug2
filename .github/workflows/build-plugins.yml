@@ -65,7 +65,24 @@ jobs:
 
       - name: Set VST3 SDK environment variable
         run: |
-          setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
+          echo "VST3_SDK_PATH=${{ github.workspace }}\\Dependencies\\VST3_SDK" >> $env:GITHUB_ENV
+        shell: pwsh
+
+      - name: Show VST3_SDK_PATH
+        run: |
+          echo "VST3_SDK_PATH is: $env:VST3_SDK_PATH"
+        shell: pwsh
+
+      - name: List contents of VST3 SDK directory
+        run: |
+          if (Test-Path $env:VST3_SDK_PATH) {
+            echo "Contents of VST3 SDK:"
+            Get-ChildItem -Recurse -Path $env:VST3_SDK_PATH
+          } else {
+            echo "VST3 SDK directory not found at path: $env:VST3_SDK_PATH"
+            exit 1
+          }
+        shell: pwsh
 
       - name: Restore NuGet packages
         run: |
