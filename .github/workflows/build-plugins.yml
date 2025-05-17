@@ -79,10 +79,13 @@ jobs:
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
-          cd Examples/${{ matrix.plugin }}
+          cd Examples/${{ matrix.plugin }}/projects
           
-          # Build only the VST3 target using MSBuild
-          msbuild "IPlugEffect.vcxproj" /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3
+          # Check if the plugin's vst3 project file exists
+          dir
+
+          # Dynamically build the VST3 plugin using the appropriate .vcxproj file
+          msbuild "${{ matrix.plugin }}-vst3.vcxproj" /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3
 
       - name: Upload VST3 Artifact
         uses: actions/upload-artifact@v4
