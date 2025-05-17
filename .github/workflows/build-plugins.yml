@@ -15,11 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: List contents of Examples/
+        run: |
+          echo "Listing directories in Examples/"
+          ls -R Examples/
+          
       - name: Generate plugin list
         id: set-matrix
         run: |
           # List all subdirectories in Examples/
-          echo "Listing directories in Examples/"
           plugins=$(ls -1 Examples)
           echo "Plugins found: $plugins"
           
