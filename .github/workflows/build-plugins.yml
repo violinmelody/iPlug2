@@ -77,7 +77,7 @@ jobs:
         run: |
           nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
 
-      - name: Check files in plugin directory
+      - name: Check directory structure
         run: |
           cd Examples/${{ matrix.plugin }}/projects
           dir
@@ -86,20 +86,13 @@ jobs:
         run: |
           cd Examples/${{ matrix.plugin }}/projects
           
-          # Ensure the props file exists in the expected location
-          if exist "config/IPlugEffect-win.props" (
-            echo "Found the .props file: IPlugEffect-win.props"
+          # Check if the plugin's vst3 project file exists
+          if exist "IPlugEffect-vst3.vcxproj" (
+            echo "Found the .vcxproj file: IPlugEffect-vst3.vcxproj"
+            # Build the VST3 plugin using the appropriate .vcxproj file
+            msbuild "IPlugEffect-vst3.vcxproj" /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3 /p:SolutionDir="${{ github.workspace }}\Examples\${{ matrix.plugin }}\projects\"
           ) else (
-            echo "Error: .props file not found: IPlugEffect-win.props"
-            exit 1
-          )
-
-          # Dynamically build the VST3 plugin using the appropriate .vcxproj file
-          if exist "${{ matrix.plugin }}-vst3.vcxproj" (
-            echo "Found the .vcxproj file: ${{ matrix.plugin }}-vst3.vcxproj"
-            msbuild "${{ matrix.plugin }}-vst3.vcxproj" /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3 /p:VST3_SDK_PATH="${{ github.workspace }}\Dependencies\VST3_SDK"
-          ) else (
-            echo "Error: .vcxproj file not found: ${{ matrix.plugin }}-vst3.vcxproj"
+            echo "Error: .vcxproj file not found: IPlugEffect-vst3.vcxproj"
             exit 1
           )
 
