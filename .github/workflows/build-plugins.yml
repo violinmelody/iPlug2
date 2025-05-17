@@ -46,16 +46,23 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Set up VST3 SDK
+      - name: Set up VST3 SDK (latest version)
         run: |
-          # Download and set up the VST3 SDK
-          mkdir -p ${{ github.workspace }}/Dependencies/VST3_SDK
-          
-          # Download the VST3 SDK (using the simpler method)
-          curl -L -o VST3_SDK.zip https://download.steinberg.net/sdk_downloads/VST3_SDK_3.6.14.1155.zip  # Update URL as needed
-          
-          # Unzip the downloaded SDK
-          unzip -q VST3_SDK.zip -d ${{ github.workspace }}/Dependencies/VST3_SDK
+          # PowerShell script to fetch the latest VST3 SDK version automatically
+          $sdkUrl = Invoke-WebRequest -Uri "https://github.com/steinbergmedia/vst3sdk/releases/latest" | Select-String -Pattern 'href="([^"]+VST3_SDK[^"]+)"' | ForEach-Object { $_.Matches.Groups[1].Value }
+
+          if ($sdkUrl -eq $null) {
+            Write-Error "Failed to find the VST3 SDK download link."
+            exit 1
+          }
+
+          # Construct the full URL for the latest VST3 SDK
+          $fullUrl = "https://github.com$sdkUrl"
+          Write-Host "Downloading SDK from $fullUrl"
+
+          # Download and unzip the SDK
+          Invoke-WebRequest -Uri $fullUrl -OutFile "VST3_SDK.zip"
+          Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}/Dependencies/VST3_SDK" -Force
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
