@@ -1,4 +1,4 @@
-name: Build Plugins with Visual Studio Projects
+name: Build Plugins with Visual Studio Solutions
 
 on:
   push:
@@ -19,14 +19,20 @@ jobs:
         id: set-matrix
         run: |
           plugins=$(ls -1 Examples | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          
-          # Check each plugin directory for the presence of a .vcxproj file
+
+          # Check each plugin directory for the presence of a .sln file
           valid_plugins=()
           for plugin in $plugins; do
-            if [ -f "Examples/${plugin}/*.vcxproj" ]; then
+            if [ -f "Examples/${plugin}/*.sln" ]; then
               valid_plugins+=("\"${plugin}\"")
             fi
           done
+
+          # If no valid plugins are found, print a warning
+          if [ ${#valid_plugins[@]} -eq 0 ]; then
+            echo "No plugins found with .sln files!"
+            exit 1
+          fi
 
           # Format the matrix output correctly as a JSON string
           matrix=$(echo "[${valid_plugins[*]}]" | sed 's/ /,/g')  # Join plugin names with commas
@@ -55,10 +61,10 @@ jobs:
         run: |
           choco install visualstudio2019-workload-vctools # Ensure you have necessary tools
 
-      - name: Build the plugin using Visual Studio project file
+      - name: Build the plugin using Visual Studio solution file
         run: |
           cd Examples/${{ matrix.plugin }}
-          msbuild ${matrix.plugin}.vcxproj /p:Configuration=Release
+          msbuild ${matrix.plugin}.sln /p:Configuration=Release
 
       - name: Upload VST3 (if found)
         uses: actions/upload-artifact@v4.6.2
