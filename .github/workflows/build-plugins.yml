@@ -24,6 +24,7 @@ jobs:
         id: set-matrix
         run: |
           # List all subdirectories in Examples/
+          echo "Scanning for plugins in Examples/"
           plugins=$(ls -1 Examples)
           echo "Plugins found: $plugins"
           
@@ -34,6 +35,8 @@ jobs:
             if [ -f "Examples/${plugin}/*.sln" ]; then
               valid_plugins+=("\"${plugin}\"")
               echo "Valid plugin found: ${plugin}"
+            else
+              echo "No .sln file found in Examples/${plugin}/"
             fi
           done
 
