@@ -46,37 +46,29 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Set up VST3 SDK (latest version)
+      - name: Set up VST3 SDK (download from GitHub main branch)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          # Fetch latest release info
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/steinbergmedia/vst3sdk/releases/latest"
+          # Download the main branch as zip (Steinberg does not use releases)
+          $url = "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/main.zip"
+          Write-Host "Downloading VST3 SDK from $url"
 
-          # Find the first ZIP asset
-          $asset = $release.assets | Where-Object { $_.name -like "*.zip" }
-
-          if (-not $asset) {
-            Write-Error "Could not find a ZIP asset in the latest release."
-            exit 1
-          }
-
-          $url = $asset.browser_download_url
-          Write-Host "Downloading SDK from $url"
-
-          # Download and unzip
           Invoke-WebRequest -Uri $url -OutFile "VST3_SDK.zip"
-          Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}\Dependencies\VST3_SDK" -Force
+
+          # Extract and rename
+          Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}\Dependencies" -Force
+          Rename-Item -Path "${{ github.workspace }}\Dependencies\vst3sdk-main" -NewName "VST3_SDK"
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
           cd Examples\${{ matrix.plugin }}
 
-          # Set the VST3 SDK path env var (adjust if needed)
-          setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK\VST3_SDK"
+          # Set VST3_SDK_PATH environment variable
+          setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
 
-          # Build the solution
+          # Build the solution using MSBuild
           msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
 
       - name: Upload VST3 Artifact
