@@ -2,9 +2,9 @@ name: Build VST3 Plugins
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch: # Allows manual trigger
 
 jobs:
@@ -25,7 +25,7 @@ jobs:
       - name: Clone VST3 SDK if Cache Missed
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
-          # Clone the VST3 SDK repository
+          # Clone the VST3 SDK repository if it's not cached
           git clone https://github.com/steinbergmedia/vst3sdk.git ${{ github.workspace }}/Dependencies/VST3_SDK
 
   generate-matrix:
@@ -39,7 +39,7 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          # Find .sln files that are exactly at Examples/PluginName/PluginName.sln
+          # Find all .sln files under Examples/PluginName/PluginName.sln and generate a matrix
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           
           if [ -z "$plugins" ]; then
@@ -47,6 +47,7 @@ jobs:
             exit 1
           fi
 
+          # Create a matrix from the found plugins
           matrix="{\"plugin\":[${plugins}]}"
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
@@ -59,7 +60,7 @@ jobs:
       matrix:
         plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}
 
-    name: Build ${{ matrix.plugin }}
+    name: Build VST3 Plugin ${{ matrix.plugin }}
 
     steps:
       - uses: actions/checkout@v3
@@ -69,7 +70,7 @@ jobs:
 
       - name: Set VST3 SDK environment variable
         run: |
-          # Set the environment variable to point to the cloned SDK
+          # Set the environment variable to point to the cloned SDK on Windows
           setx VST3_SDK_PATH "${{ github.workspace }}\Dependencies\VST3_SDK"
 
       - name: Restore NuGet packages
@@ -80,8 +81,8 @@ jobs:
         run: |
           cd Examples/${{ matrix.plugin }}
           
-          # Use MSBuild to build the solution
-          msbuild ${{ matrix.plugin }}.sln /p:Configuration=Release
+          # Build only the VST3 target using MSBuild
+          msbuild "IPlugEffect.vcxproj" /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3
 
       - name: Upload VST3 Artifact
         uses: actions/upload-artifact@v4
