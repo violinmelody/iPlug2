@@ -8,33 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  cache-vst3-sdk:
-    runs-on: ubuntu-latest
-    outputs:
-      vst3_sdk_cached: ${{ steps.cache-sdk.outputs.cache-hit }}
-    steps:
-      - name: Cache VST3 SDK
-        id: cache-sdk
-        uses: actions/cache@v3
-        with:
-          path: ${{ github.workspace }}/Dependencies/VST3_SDK
-          key: vst3-sdk-${{ runner.os }}-v1-${{ hashFiles('**/VST3_SDK/**') }}
-          restore-keys: |
-            vst3-sdk-${{ runner.os }}-v1-
-
-      - name: Clone VST3 SDK if Cache Missed
-        if: steps.cache-sdk.outputs.cache-hit != 'true'
-        run: |
-          git clone https://github.com/steinbergmedia/vst3sdk.git ${{ github.workspace }}/Dependencies/VST3_SDK
-
-      - name: Upload VST3 SDK as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: vst3-sdk
-          path: ${{ github.workspace }}/Dependencies/VST3_SDK
-
   generate-matrix:
-    needs: cache-vst3-sdk
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -53,7 +27,7 @@ jobs:
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   build:
-    needs: [cache-vst3-sdk, generate-matrix]
+    needs: generate-matrix
     runs-on: windows-latest
 
     strategy:
@@ -69,12 +43,14 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Download VST3 SDK artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: vst3-sdk
-          path: Dependencies/VST3_SDK
+      - name: Download VST3 SDK ZIP
+        run: |
+          Invoke-WebRequest -Uri "https://download.steinberg.net/sdk/vst3sdk.zip" -OutFile "vst3sdk.zip"
 
+      - name: Extract VST3 SDK ZIP
+        run: |
+          Expand-Archive -Path vst3sdk.zip -DestinationPath "${{ github.workspace }}\Dependencies\VST3_SDK"
+        
       - name: Set VST3 SDK environment variable
         run: |
           echo "VST3_SDK_PATH=${{ github.workspace }}\\Dependencies\\VST3_SDK" >> $env:GITHUB_ENV
