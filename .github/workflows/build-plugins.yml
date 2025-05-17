@@ -86,15 +86,15 @@ jobs:
         run: |
           cd Examples/${{ matrix.plugin }}/projects
           
-          # Check if the plugin's vst3 project file exists
-          if exist "IPlugEffect-vst3.vcxproj" (
+          # Check if the plugin's vst3 project file exists (correct PowerShell syntax)
+          if (Test-Path "IPlugEffect-vst3.vcxproj") {
             echo "Found the .vcxproj file: IPlugEffect-vst3.vcxproj"
             # Build the VST3 plugin using the appropriate .vcxproj file
             msbuild "IPlugEffect-vst3.vcxproj" /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3 /p:SolutionDir="${{ github.workspace }}\Examples\${{ matrix.plugin }}\projects\"
-          ) else (
+          } else {
             echo "Error: .vcxproj file not found: IPlugEffect-vst3.vcxproj"
             exit 1
-          )
+          }
 
       - name: Upload VST3 Artifact
         uses: actions/upload-artifact@v4
