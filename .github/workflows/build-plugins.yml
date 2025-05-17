@@ -45,20 +45,16 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Set up VST3 SDK (download from develop branch)
+      - name: Set up VST3 SDK (clone from GitHub)
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
 
-          # Use the correct branch: develop
-          $url = "https://github.com/steinbergmedia/vst3sdk/archive/refs/heads/develop.zip"
-          Write-Host "Downloading VST3 SDK from $url"
+          # Clone the VST3 SDK repository
+          git clone --recursive https://github.com/steinbergmedia/vst3sdk.git "${{ github.workspace }}\Dependencies\vst3sdk"
 
-          Invoke-WebRequest -Uri $url -OutFile "VST3_SDK.zip"
-
-          # Extract into Dependencies and rename the folder
-          Expand-Archive -Path "VST3_SDK.zip" -DestinationPath "${{ github.workspace }}\Dependencies" -Force
-          Rename-Item -Path "${{ github.workspace }}\Dependencies\vst3sdk-develop" -NewName "VST3_SDK"
+          # Rename the folder to VST3_SDK
+          Rename-Item -Path "${{ github.workspace }}\Dependencies\vst3sdk" -NewName "VST3_SDK"
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
