@@ -41,12 +41,13 @@ jobs:
           echo "Listing contents of the workspace:"
           dir ${{ github.workspace }}
 
-          # Correct path to avoid the extra nested `iPlug2` directory
-          cd "${{ github.workspace }}\Dependencies\IPlug"  # Corrected path
+          # Navigate to the correct directory where the download-vst3-sdk.sh is located
+          # Here, we use the correct path directly relative to the root workspace
+          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Correct path to avoid nested directories
 
           # Verify if the script exists
           if (-Not (Test-Path "./download-vst3-sdk.sh")) {
-            Write-Host "Error: download-vst3-sdk.sh not found in ${{ github.workspace }}\Dependencies\IPlug"
+            Write-Host "Error: download-vst3-sdk.sh not found in ${{ github.workspace }}\iPlug2\Dependencies\IPlug"
             exit 1
           }
           Write-Host "Running download-vst3-sdk.sh in $(pwd)"
@@ -57,7 +58,7 @@ jobs:
 
       - name: Validate VST3 SDK structure
         run: |
-          sdkPath="${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK"
+          $sdkPath = "${{ github.workspace }}\Dependencies\IPlug\VST3_SDK"  # Correct path
           $mustExist = @(
             "base/source"
             "base/thread"
