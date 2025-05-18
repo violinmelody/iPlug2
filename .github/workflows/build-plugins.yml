@@ -30,16 +30,23 @@ jobs:
           $output = "vst3sdk.zip"
           Invoke-WebRequest -Uri $url -OutFile $output
 
-          $extractBase = "${{ github.workspace }}\iPlug2\Dependencies\IPlug"
-          $dest = Join-Path $extractBase "VST3_SDK"
+          $extractRoot = "${{ github.workspace }}\_vst3sdk_tmp"
+          $targetPath = "${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK"
 
-          echo "Creating target directory: $dest"
-          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+          New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
+          Expand-Archive -Path $output -DestinationPath $extractRoot -Force
 
-          echo "Extracting SDK to $dest"
-          Expand-Archive -Path $output -DestinationPath $dest -Force
+          $innerSDK = Get-ChildItem -Path $extractRoot -Directory -Recurse | Where-Object { $_.Name -eq "VST3_SDK" } | Select-Object -First 1
 
-          echo "VST3 SDK downloaded and extracted to $dest"
+          if ($null -eq $innerSDK) {
+            Write-Host "Error: VST3_SDK folder not found in extracted content."
+            exit 1
+          }
+
+          New-Item -ItemType Directory -Force -Path $targetPath | Out-Null
+          Move-Item -Path "$($innerSDK.FullName)\*" -Destination $targetPath -Force
+
+          Write-Host "VST3 SDK extracted to: $targetPath"
         shell: pwsh
 
       - name: Validate VST3 SDK structure
