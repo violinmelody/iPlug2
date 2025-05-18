@@ -12,12 +12,16 @@ jobs:
     runs-on: windows-latest
     outputs:
       vst3_sdk_cached: ${{ steps.cache-sdk.outputs.cache-hit }}
+      start_time: ${{ steps.start-time.outputs.start_time }}
     steps:
+      - name: Record Start Time
+        id: start-time
+        run: echo "start_time=$(Get-Date -Format o)" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
       - name: Reset workspace to avoid duplicate directories
         run: |
-          # Ensuring the directory isn't duplicated by removing existing directories (PowerShell)
           if (Test-Path "${{ github.workspace }}\iPlug2") {
-            Write-Host "Removing existing iPlug2 directory to reset."
             Remove-Item -Recurse -Force "${{ github.workspace }}\iPlug2"
           }
 
@@ -34,57 +38,23 @@ jobs:
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           echo "Running download-vst3-sdk.sh to download SDKs"
-          echo "Current workspace: ${{ github.workspace }}"
-
-          # Debug output to verify the directory structure
-          echo "Workspace directory: ${{ github.workspace }}"
-          echo "Listing contents of the workspace:"
-          dir ${{ github.workspace }}
-
-          # Navigate to the correct directory where the download-vst3-sdk.sh is located
-          cd "${{ github.workspace }}\Dependencies\IPlug"  # Corrected path
-
-          # Verify if the script exists
-          if (-Not (Test-Path "./download-vst3-sdk.sh")) {
-            Write-Host "Error: download-vst3-sdk.sh not found in ${{ github.workspace }}\Dependencies\IPlug"
-            exit 1
-          }
-          Write-Host "Running download-vst3-sdk.sh in $(pwd)"
-          
-          # Ensure the script is executable
+          cd "${{ github.workspace }}\Dependencies\IPlug"
           chmod +x ./download-vst3-sdk.sh
-          ./download-vst3-sdk.sh  # Execute the script
-
-          # After SDK download, let's list the contents of the VST3_SDK folder
-          echo "Listing contents of VST3_SDK folder after SDK extraction:"
-          dir "${{ github.workspace }}\Dependencies\IPlug\VST3_SDK"  # List contents after extraction
+          ./download-vst3-sdk.sh
+          dir "${{ github.workspace }}\Dependencies\IPlug\VST3_SDK"
 
       - name: Validate VST3 SDK structure
         run: |
-          $sdkPath = "${{ github.workspace }}\Dependencies\IPlug\VST3_SDK"  # Corrected path
-          echo "Validating SDK structure in path: $sdkPath"
-          
-          # Debug: List the contents of the VST3_SDK folder for verification
-          echo "Listing contents of VST3_SDK folder: $sdkPath"
-          dir $sdkPath  # List the contents of the folder
-
-          # Validate structure
-          $mustExist = @(
-            "base/source"
-            "base/thread"
-            "pluginterfaces"
-            "public.sdk/source"
-          )
+          $sdkPath = "${{ github.workspace }}\Dependencies\IPlug\VST3_SDK"
+          dir $sdkPath
+          $mustExist = @("base/source", "base/thread", "pluginterfaces", "public.sdk/source")
           foreach ($rel in $mustExist) {
             $path = Join-Path $sdkPath $rel
             if (!(Test-Path $path)) {
               Write-Host "Missing expected folder: $path"
               exit 1
-            } else {
-              Write-Host "Found: $path"
             }
           }
-          Write-Host "VST3 SDK folder structure validated."
         shell: pwsh
 
   generate-matrix:
@@ -98,12 +68,8 @@ jobs:
         id: set-matrix
         run: |
           plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
-          if [ -z "$plugins" ]; then
-            echo "No valid .sln files found."
-            exit 1
-          fi
-          matrix="{\"plugin\":[${plugins}]}"
-          echo "matrix=$matrix" >> $GITHUB_OUTPUT
+          [ -z "$plugins" ] && exit 1
+          echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
   build:
     needs: [cache-vst3-sdk, generate-matrix]
@@ -112,7 +78,6 @@ jobs:
       fail-fast: false
       matrix:
         plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}
-
     name: Build VST3 Plugin ${{ matrix.plugin }}
 
     steps:
@@ -125,14 +90,13 @@ jobs:
           key: vst3-sdk-windows-v1
 
       - name: Set VST3 SDK environment variable
-        run: |
-          echo "VST3_SDK_PATH=${{ github.workspace }}\Dependencies\IPlug\VST3_SDK" >> $env:GITHUB_ENV
+        run: echo "VST3_SDK_PATH=${{ github.workspace }}\Dependencies\IPlug\VST3_SDK" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Verify VST3 SDK exists
         run: |
           if (!(Test-Path $env:VST3_SDK_PATH)) {
-            echo "VST3 SDK directory not found at path: $env:VST3_SDK_PATH"
+            echo "VST3 SDK directory not found"
             exit 1
           }
         shell: pwsh
@@ -141,18 +105,16 @@ jobs:
         uses: microsoft/setup-msbuild@v1.0.2
 
       - name: Restore NuGet packages
-        run: |
-          nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
+        run: nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
 
       - name: Build VST3 plugin (${{ matrix.plugin }})
         run: |
           cd Examples/${{ matrix.plugin }}/projects
           $projName = "${{ matrix.plugin }}-vst3.vcxproj"
           if (Test-Path $projName) {
-            echo "Found the .vcxproj file: $projName"
             msbuild $projName /p:Configuration=Release /p:Platform=x64 /p:TargetName=VST3 /p:SolutionDir="${{ github.workspace }}\Examples\${{ matrix.plugin }}\"
           } else {
-            echo "Error: .vcxproj file not found: $projName"
+            echo "Project not found: $projName"
             exit 1
           }
         shell: pwsh
@@ -163,3 +125,28 @@ jobs:
           name: ${{ matrix.plugin }}-vst3
           path: |
             **/*.vst3
+
+  notify:
+    needs: [cache-vst3-sdk, generate-matrix, build]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Send Discord Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          STATUS: ${{ job.status }}
+          BRANCH: ${{ github.ref_name }}
+          WORKFLOW: ${{ github.workflow }}
+          START_TIME: ${{ needs.cache-vst3-sdk.outputs.start_time }}
+        run: |
+          end_time=$(date -u +%s)
+          start_time=$(date -d "$START_TIME" +%s 2>/dev/null || echo $end_time)
+          duration=$((end_time - start_time))
+          minutes=$((duration / 60))
+          seconds=$((duration % 60))
+
+          message="**${WORKFLOW}** on branch \`${BRANCH}\` completed with status: **${STATUS^^}** in ${minutes}m ${seconds}s"
+
+          curl -X POST -H "Content-Type: application/json" \
+            -d "{\"content\": \"$message\"}" \
+            "$DISCORD_WEBHOOK"
