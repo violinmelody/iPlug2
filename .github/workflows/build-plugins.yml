@@ -27,7 +27,7 @@ jobs:
         id: cache-sdk
         uses: actions/cache@v3
         with:
-          path: iPlug2/Dependencies/IPlug/VST3_SDK
+          path: ${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK
           key: vst3-sdk-windows-v1
 
       - name: Download and Extract VST3 SDK (if not cached)
@@ -41,9 +41,8 @@ jobs:
           echo "Listing contents of the workspace:"
           dir ${{ github.workspace }}
 
-          # Navigate to the correct directory where the download-vst3-sdk.sh is located
-          # Adjusted path to avoid nested directories
-          cd "${{ github.workspace }}\Dependencies\IPlug"  # Corrected path
+          # Use full path from root to navigate
+          cd "${{ github.workspace }}\Dependencies\IPlug"  # Full path from root
 
           # Verify if the script exists
           if (-Not (Test-Path "./download-vst3-sdk.sh")) {
@@ -111,7 +110,7 @@ jobs:
       - name: Restore cached VST3 SDK
         uses: actions/cache@v3
         with:
-          path: iPlug2/Dependencies/IPlug/VST3_SDK
+          path: ${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK
           key: vst3-sdk-windows-v1
 
       - name: Set VST3 SDK environment variable
