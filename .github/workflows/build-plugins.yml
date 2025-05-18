@@ -13,6 +13,14 @@ jobs:
     outputs:
       vst3_sdk_cached: ${{ steps.cache-sdk.outputs.cache-hit }}
     steps:
+      - name: Reset workspace to avoid duplicate directories
+        run: |
+          # Ensuring the directory isn't duplicated by removing existing directories
+          if [ -d "${{ github.workspace }}/iPlug2" ]; then
+            echo "Removing existing iPlug2 directory to reset."
+            rm -rf "${{ github.workspace }}/iPlug2"
+          fi
+
       - uses: actions/checkout@v3
 
       - name: Cache VST3 SDK
@@ -28,19 +36,19 @@ jobs:
           echo "Running download-vst3-sdk.sh to download SDKs"
           echo "Current workspace: ${{ github.workspace }}"
           
-          # Change directory explicitly to avoid nested iPlug2 directories
-          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Ensure correct path
-          echo "Changed directory to: $(pwd)"  # Debugging output
+          # Navigate to the correct directory where the download-vst3-sdk.sh is located
+          cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"  # Adjusting path to avoid double directories
 
-          # Verify if the download-vst3-sdk.sh script exists before running it
+          # Verify if the script exists
           if [ ! -f "./download-vst3-sdk.sh" ]; then
             echo "Error: download-vst3-sdk.sh not found in ${{ github.workspace }}/iPlug2/Dependencies/IPlug"
             exit 1
           fi
-
-          chmod +x ./download-vst3-sdk.sh  # Ensure the script is executable
-          ./download-vst3-sdk.sh  # Run the script to download the VST3 SDK
-        shell: bash
+          echo "Running download-vst3-sdk.sh in $(pwd)"
+          
+          # Ensure the script is executable
+          chmod +x ./download-vst3-sdk.sh
+          ./download-vst3-sdk.sh  # Execute the script
 
       - name: Validate VST3 SDK structure
         run: |
