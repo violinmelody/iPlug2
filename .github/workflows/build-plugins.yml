@@ -22,34 +22,18 @@ jobs:
           path: iPlug2/Dependencies/IPlug/VST3_SDK
           key: vst3-sdk-windows-v1
 
-      - name: Install MSYS2 for Git Bash support
+      - name: Download and Extract VST3 SDK (if not cached)
         if: steps.cache-sdk.outputs.cache-hit != 'true'
-        uses: msys2/setup-msys2@v2
-        with:
-          install: git unzip curl
-
-      - name: Ensure directory structure
         run: |
-          echo "Checking if iPlug2/Dependencies/IPlug directory exists..."
-          if (-not (Test-Path "${{ github.workspace }}\iPlug2\Dependencies\IPlug")) {
-            Write-Host "Directory iPlug2/Dependencies/IPlug does not exist. Creating it now."
-            New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\iPlug2\Dependencies\IPlug"
-          } else {
-            Write-Host "Directory iPlug2/Dependencies/IPlug exists."
-          }
-        shell: pwsh
-
-      - name: Run download-iplug-sdks.sh script (if SDK is not cached)
-        if: steps.cache-sdk.outputs.cache-hit != 'true'
-        shell: msys2 {0}
-        run: |
-          echo "Running download-iplug-sdks.sh to download SDKs"
+          echo "Running download-vst3-sdk.sh to download SDKs"
           cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"
-          if [ ! -f "./download-iplug-sdks.sh" ]; then
-            echo "Error: download-iplug-sdks.sh not found."
+          if [ ! -f "./download-vst3-sdk.sh" ]; then
+            echo "Error: download-vst3-sdk.sh not found."
             exit 1
           fi
-          ./download-iplug-sdks.sh
+          chmod +x ./download-vst3-sdk.sh
+          ./download-vst3-sdk.sh
+        shell: bash
 
       - name: Validate VST3 SDK structure
         run: |
