@@ -131,26 +131,12 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Determine overall job status
-        id: summary
-        run: |
-          all_success=true
-          for job in ${{ toJson(needs) }}; do
-            status=$(echo "$job" | jq -r '.result')
-            if [[ "$status" != "success" ]]; then
-              all_success=false
-              break
-            fi
-          done
-
-          echo "overall_status=$([ "$all_success" = true ] && echo 'SUCCESS' || echo 'FAILED')" >> $GITHUB_OUTPUT
-
       - name: Send Discord Notification
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          STATUS_CACHE: ${{ needs.cache-vst3-sdk.result }}
+          STATUS_MATRIX: ${{ needs.generate-matrix.result }}
+          STATUS_BUILD: ${{ needs.build.result }}
           BRANCH: ${{ github.ref_name }}
           WORKFLOW: ${{ github.workflow }}
           RUN_ID: ${{ github.run_id }}
@@ -163,9 +149,14 @@ jobs:
           minutes=$((duration / 60))
           seconds=$((duration % 60))
 
-          STATUS="${{ steps.summary.outputs.overall_status }}"
+          # Determine overall status based on previous jobs' results
+          overall_status="SUCCESS"
+          if [[ "$STATUS_CACHE" != "success" || "$STATUS_MATRIX" != "success" || "$STATUS_BUILD" != "success" ]]; then
+            overall_status="FAILED"
+          fi
+
           url="https://github.com/${REPO}/actions/runs/${RUN_ID}"
-          message="**${WORKFLOW}** on branch \`${BRANCH}\` finished with status: **${STATUS}** in ${minutes}m ${seconds}s\n[View Logs](${url})"
+          message="**${WORKFLOW}** on branch \`${BRANCH}\` finished with status: **${overall_status}** in ${minutes}m ${seconds}s\n[View Logs](${url})"
 
           curl -X POST -H "Content-Type: application/json" \
             -d "{\"content\": \"$message\"}" \
