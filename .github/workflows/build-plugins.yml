@@ -22,23 +22,30 @@ jobs:
           path: iPlug2/Dependencies/IPlug/VST3_SDK
           key: vst3-sdk-windows-v1
 
+      - name: Clean Nested Directories
+        run: |
+          echo "Current workspace: ${{ github.workspace }}"
+          # Clean up any unwanted nested directories if they exist
+          rm -rf "${{ github.workspace }}/iPlug2/iPlug2" # Remove nested directories like iPlug2/iPlug2/
+          echo "Cleaned up nested directories, if they existed."
+
       - name: Download and Extract VST3 SDK (if not cached)
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           echo "Running download-vst3-sdk.sh to download SDKs"
-          echo "Current workspace: ${{ github.workspace }}"  # Debugging the workspace path
+          echo "Current workspace: ${{ github.workspace }}"
           
-          # Fix for nested directory issue: Directly use the correct relative path
+          # Navigate to the proper directory to run the script
           cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"  # Correct directory reference
 
-          # Verify that the script exists before running it
+          # Check if the script exists and is executable
           if [ ! -f "./download-vst3-sdk.sh" ]; then
             echo "Error: download-vst3-sdk.sh not found."
             exit 1
           fi
           
           chmod +x ./download-vst3-sdk.sh  # Ensure script is executable
-          ./download-vst3-sdk.sh  # Run the script
+          ./download-vst3-sdk.sh  # Execute the script to download VST3 SDK
         shell: bash
 
       - name: Validate VST3 SDK structure
