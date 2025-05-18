@@ -22,50 +22,44 @@ jobs:
           path: iPlug2/Dependencies/IPlug/VST3_SDK
           key: vst3-sdk-windows-v1
 
-      - name: Clean Nested Directories
-        run: |
-          echo "Current workspace: ${{ github.workspace }}"
-          # Clean up any unwanted nested directories if they exist
-          rm -rf "${{ github.workspace }}/iPlug2/iPlug2" # Remove nested directories like iPlug2/iPlug2/
-          echo "Cleaned up nested directories, if they existed."
-
       - name: Download and Extract VST3 SDK (if not cached)
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           echo "Running download-vst3-sdk.sh to download SDKs"
           echo "Current workspace: ${{ github.workspace }}"
           
-          # Navigate to the proper directory to run the script
-          cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"  # Correct directory reference
+          # Correct path handling to avoid nesting issues
+          cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"  # Navigate to the correct directory
+          echo "Changed directory to: $(pwd)"  # Print current directory to debug path issues
 
-          # Check if the script exists and is executable
+          # Check if the download-vst3-sdk.sh script exists before executing
           if [ ! -f "./download-vst3-sdk.sh" ]; then
-            echo "Error: download-vst3-sdk.sh not found."
+            echo "Error: download-vst3-sdk.sh not found in ${{ github.workspace }}/iPlug2/Dependencies/IPlug"
             exit 1
           fi
-          
-          chmod +x ./download-vst3-sdk.sh  # Ensure script is executable
-          ./download-vst3-sdk.sh  # Execute the script to download VST3 SDK
+
+          chmod +x ./download-vst3-sdk.sh  # Ensure the script is executable
+          ./download-vst3-sdk.sh  # Run the script to download the VST3 SDK
         shell: bash
 
       - name: Validate VST3 SDK structure
         run: |
-          $sdkPath = "${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK"
-          $mustExist = @(
-            "base\source",
-            "base\thread",
-            "pluginterfaces",
+          sdkPath="${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK"
+          mustExist=(
+            "base\source"
+            "base\thread"
+            "pluginterfaces"
             "public.sdk\source"
           )
-          foreach ($rel in $mustExist) {
-            $path = Join-Path $sdkPath $rel
+          for rel in "${mustExist[@]}"; do
+            path="${sdkPath}\\$rel"
             if (!(Test-Path $path)) {
               Write-Host "Missing expected folder: $path"
               exit 1
             } else {
               Write-Host "Found: $path"
             }
-          }
+          done
           Write-Host "VST3 SDK folder structure validated."
         shell: pwsh
 
