@@ -42,7 +42,6 @@ jobs:
           dir ${{ github.workspace }}
 
           # Navigate to the correct directory where the download-vst3-sdk.sh is located
-          # Correct path relative to the root workspace (removing the duplicate iPlug2)
           cd "${{ github.workspace }}\Dependencies\IPlug"  # Corrected path
 
           # Verify if the script exists
@@ -55,6 +54,10 @@ jobs:
           # Ensure the script is executable
           chmod +x ./download-vst3-sdk.sh
           ./download-vst3-sdk.sh  # Execute the script
+
+          # After SDK download, let's list the contents of the VST3_SDK folder
+          echo "Listing contents of VST3_SDK folder after SDK extraction:"
+          dir "${{ github.workspace }}\Dependencies\IPlug\VST3_SDK"  # List contents after extraction
 
       - name: Validate VST3 SDK structure
         run: |
