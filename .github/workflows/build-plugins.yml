@@ -150,9 +150,9 @@ jobs:
           seconds=$((duration % 60))
 
           # Determine overall status based on previous jobs' results
-          overall_status="SUCCESS"
+          overall_status=":white_check_mark: SUCCESS"
           if [[ "$STATUS_CACHE" != "success" || "$STATUS_MATRIX" != "success" || "$STATUS_BUILD" != "success" ]]; then
-            overall_status="FAILED"
+            overall_status=":x: FAILED"
           fi
 
           url="https://github.com/${REPO}/actions/runs/${RUN_ID}"
