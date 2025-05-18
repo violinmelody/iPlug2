@@ -35,9 +35,9 @@ jobs:
         run: |
           echo "Running download-vst3-sdk.sh to download SDKs"
           echo "Current workspace: ${{ github.workspace }}"
-          
+
           # Navigate to the correct directory where the download-vst3-sdk.sh is located
-          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Adjusting path to avoid double directories
+          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Correct path with no extra iPlug2
 
           # Verify if the script exists
           if (-Not (Test-Path "./download-vst3-sdk.sh")) {
