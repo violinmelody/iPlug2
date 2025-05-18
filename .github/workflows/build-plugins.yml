@@ -15,11 +15,11 @@ jobs:
     steps:
       - name: Reset workspace to avoid duplicate directories
         run: |
-          # Ensuring the directory isn't duplicated by removing existing directories
-          if [ -d "${{ github.workspace }}/iPlug2" ]; then
-            echo "Removing existing iPlug2 directory to reset."
-            rm -rf "${{ github.workspace }}/iPlug2"
-          fi
+          # Ensuring the directory isn't duplicated by removing existing directories (PowerShell)
+          if (Test-Path "${{ github.workspace }}\iPlug2") {
+            Write-Host "Removing existing iPlug2 directory to reset."
+            Remove-Item -Recurse -Force "${{ github.workspace }}\iPlug2"
+          }
 
       - uses: actions/checkout@v3
 
@@ -37,14 +37,14 @@ jobs:
           echo "Current workspace: ${{ github.workspace }}"
           
           # Navigate to the correct directory where the download-vst3-sdk.sh is located
-          cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"  # Adjusting path to avoid double directories
+          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Adjusting path to avoid double directories
 
           # Verify if the script exists
-          if [ ! -f "./download-vst3-sdk.sh" ]; then
-            echo "Error: download-vst3-sdk.sh not found in ${{ github.workspace }}/iPlug2/Dependencies/IPlug"
+          if (-Not (Test-Path "./download-vst3-sdk.sh")) {
+            Write-Host "Error: download-vst3-sdk.sh not found in ${{ github.workspace }}\iPlug2\Dependencies\IPlug"
             exit 1
-          fi
-          echo "Running download-vst3-sdk.sh in $(pwd)"
+          }
+          Write-Host "Running download-vst3-sdk.sh in $(pwd)"
           
           # Ensure the script is executable
           chmod +x ./download-vst3-sdk.sh
@@ -59,15 +59,15 @@ jobs:
             "pluginterfaces"
             "public.sdk\source"
           )
-          for rel in "${mustExist[@]}"; do
-            path="${sdkPath}\\$rel"
+          foreach ($rel in $mustExist) {
+            $path = Join-Path $sdkPath $rel
             if (!(Test-Path $path)) {
               Write-Host "Missing expected folder: $path"
               exit 1
             } else {
               Write-Host "Found: $path"
             }
-          done
+          }
           Write-Host "VST3 SDK folder structure validated."
         shell: pwsh
 
