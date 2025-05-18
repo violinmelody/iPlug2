@@ -13,39 +13,54 @@ jobs:
     outputs:
       vst3_sdk_cached: ${{ steps.cache-sdk.outputs.cache-hit }}
     steps:
+      - uses: actions/checkout@v3
+
       - name: Cache VST3 SDK
         id: cache-sdk
         uses: actions/cache@v3
         with:
-          path: ${{ github.workspace }}\Dependencies\VST3_SDK
+          path: iPlug2/Dependencies/IPlug/VST3_SDK
           key: vst3-sdk-windows-v1
 
-      - name: Download VST3 SDK (if not cached)
+      - name: Download and Extract VST3 SDK (if not cached)
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           echo "Downloading VST3 SDK..."
           $url = "https://www.steinberg.net/vst3sdk"
           $output = "vst3sdk.zip"
           Invoke-WebRequest -Uri $url -OutFile $output
-          $dest = "${{ github.workspace }}\Dependencies\VST3_SDK"
-          New-Item -ItemType Directory -Force -Path $dest
-          Expand-Archive -Path $output -DestinationPath $dest
+
+          $extractBase = "${{ github.workspace }}\iPlug2\Dependencies\IPlug"
+          $dest = Join-Path $extractBase "VST3_SDK"
+
+          echo "Creating target directory: $dest"
+          New-Item -ItemType Directory -Force -Path $dest | Out-Null
+
+          echo "Extracting SDK to $dest"
+          Expand-Archive -Path $output -DestinationPath $dest -Force
+
           echo "VST3 SDK downloaded and extracted to $dest"
         shell: pwsh
 
-      - name: Validate VST3 SDK
+      - name: Validate VST3 SDK structure
         run: |
-          $sdkPath = "${{ github.workspace }}\Dependencies\VST3_SDK"
-          if (!(Test-Path $sdkPath)) {
-            Write-Host "Error: VST3 SDK path not found."
-            exit 1
+          $sdkPath = "${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK"
+          $mustExist = @(
+            "base\source",
+            "base\thread",
+            "pluginterfaces",
+            "public.sdk\source"
+          )
+          foreach ($rel in $mustExist) {
+            $path = Join-Path $sdkPath $rel
+            if (!(Test-Path $path)) {
+              Write-Host "Missing expected folder: $path"
+              exit 1
+            } else {
+              Write-Host "Found: $path"
+            }
           }
-          $header = Join-Path $sdkPath "pluginterfaces\vst\ivstaudioprocessor.h"
-          if (!(Test-Path $header)) {
-            Write-Host "Error: Expected SDK file not found."
-            exit 1
-          }
-          Write-Host "VST3 SDK is valid."
+          Write-Host "VST3 SDK folder structure validated."
         shell: pwsh
 
   generate-matrix:
@@ -82,12 +97,12 @@ jobs:
       - name: Restore cached VST3 SDK
         uses: actions/cache@v3
         with:
-          path: ${{ github.workspace }}\Dependencies\VST3_SDK
+          path: iPlug2/Dependencies/IPlug/VST3_SDK
           key: vst3-sdk-windows-v1
 
       - name: Set VST3 SDK environment variable
         run: |
-          echo "VST3_SDK_PATH=${{ github.workspace }}\Dependencies\VST3_SDK" >> $env:GITHUB_ENV
+          echo "VST3_SDK_PATH=${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Verify VST3 SDK exists
