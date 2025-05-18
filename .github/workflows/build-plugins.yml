@@ -36,6 +36,11 @@ jobs:
           echo "Running download-vst3-sdk.sh to download SDKs"
           echo "Current workspace: ${{ github.workspace }}"
 
+          # Debug output to verify the directory structure
+          echo "Workspace directory: ${{ github.workspace }}"
+          echo "Listing contents of the workspace:"
+          dir ${{ github.workspace }}
+
           # Navigate to the correct directory where the download-vst3-sdk.sh is located
           # Here, we use the correct path directly relative to the root workspace
           cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Correct path to avoid nested directories
