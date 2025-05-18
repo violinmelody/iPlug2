@@ -27,13 +27,18 @@ jobs:
         run: |
           echo "Running download-vst3-sdk.sh to download SDKs"
           echo "Current workspace: ${{ github.workspace }}"  # Debugging the workspace path
-          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Corrected path reference
+          
+          # Fixing the path issue by adjusting the extra 'iPlug2' directory
+          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Correct path to 'IPlug' folder
+          
+          # Verify that the script exists before running it
           if [ ! -f "./download-vst3-sdk.sh" ]; then
             echo "Error: download-vst3-sdk.sh not found."
             exit 1
           fi
-          chmod +x ./download-vst3-sdk.sh
-          ./download-vst3-sdk.sh
+          
+          chmod +x ./download-vst3-sdk.sh  # Make sure the script is executable
+          ./download-vst3-sdk.sh  # Run the script
         shell: bash
 
       - name: Validate VST3 SDK structure
