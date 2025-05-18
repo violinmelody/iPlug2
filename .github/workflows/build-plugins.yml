@@ -20,34 +20,20 @@ jobs:
         uses: actions/cache@v3
         with:
           path: iPlug2/Dependencies/IPlug/VST3_SDK
-          key: vst3-sdk-windows-v1
+          key: vst3-sdk-windows-v2
 
-      - name: Download and Extract VST3 SDK (if not cached)
+      - name: Install Git Bash (for running .sh scripts)
         if: steps.cache-sdk.outputs.cache-hit != 'true'
+        uses: msys2/setup-msys2@v2
+        with:
+          install: git unzip curl
+
+      - name: Run iPlug2 SDK download script (if not cached)
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        shell: msys2 {0}
         run: |
-          echo "Downloading VST3 SDK..."
-          $url = "https://www.steinberg.net/vst3sdk"
-          $output = "vst3sdk.zip"
-          Invoke-WebRequest -Uri $url -OutFile $output
-
-          $extractRoot = "${{ github.workspace }}\_vst3sdk_tmp"
-          $targetPath = "${{ github.workspace }}\iPlug2\Dependencies\IPlug\VST3_SDK"
-
-          New-Item -ItemType Directory -Force -Path $extractRoot | Out-Null
-          Expand-Archive -Path $output -DestinationPath $extractRoot -Force
-
-          $innerSDK = Get-ChildItem -Path $extractRoot -Directory -Recurse | Where-Object { $_.Name -eq "VST3_SDK" } | Select-Object -First 1
-
-          if ($null -eq $innerSDK) {
-            Write-Host "Error: VST3_SDK folder not found in extracted content."
-            exit 1
-          }
-
-          New-Item -ItemType Directory -Force -Path $targetPath | Out-Null
-          Move-Item -Path "$($innerSDK.FullName)\*" -Destination $targetPath -Force
-
-          Write-Host "VST3 SDK extracted to: $targetPath"
-        shell: pwsh
+          cd iPlug2/Dependencies/IPlug
+          ./download-iplug-sdks.sh
 
       - name: Validate VST3 SDK structure
         run: |
@@ -105,7 +91,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: iPlug2/Dependencies/IPlug/VST3_SDK
-          key: vst3-sdk-windows-v1
+          key: vst3-sdk-windows-v2
 
       - name: Set VST3 SDK environment variable
         run: |
