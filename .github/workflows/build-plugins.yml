@@ -26,7 +26,7 @@ jobs:
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
           echo "Running download-vst3-sdk.sh to download SDKs"
-          cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"
+          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Fixed path to the correct directory
           if [ ! -f "./download-vst3-sdk.sh" ]; then
             echo "Error: download-vst3-sdk.sh not found."
             exit 1
