@@ -28,11 +28,22 @@ jobs:
         with:
           install: git unzip curl
 
+      - name: Ensure iPlug2/Dependencies/IPlug directory exists
+        run: |
+          echo "Checking if iPlug2/Dependencies/IPlug directory exists..."
+          if (-not (Test-Path "${{ github.workspace }}\iPlug2\Dependencies\IPlug")) {
+            Write-Host "Directory iPlug2/Dependencies/IPlug does not exist. Creating it now."
+            New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\iPlug2\Dependencies\IPlug"
+          } else {
+            Write-Host "Directory iPlug2/Dependencies/IPlug exists."
+          }
+        shell: pwsh
+
       - name: Run iPlug2 SDK download script (if not cached)
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
-          cd iPlug2/Dependencies/IPlug
+          cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"
           ./download-iplug-sdks.sh
 
       - name: Validate VST3 SDK structure
