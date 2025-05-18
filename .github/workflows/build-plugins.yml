@@ -20,15 +20,15 @@ jobs:
         uses: actions/cache@v3
         with:
           path: iPlug2/Dependencies/IPlug/VST3_SDK
-          key: vst3-sdk-windows-v2
+          key: vst3-sdk-windows-v1
 
-      - name: Install Git Bash (for running .sh scripts)
+      - name: Install MSYS2 for Git Bash support
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         uses: msys2/setup-msys2@v2
         with:
           install: git unzip curl
 
-      - name: Ensure iPlug2/Dependencies/IPlug directory exists
+      - name: Ensure directory structure
         run: |
           echo "Checking if iPlug2/Dependencies/IPlug directory exists..."
           if (-not (Test-Path "${{ github.workspace }}\iPlug2\Dependencies\IPlug")) {
@@ -39,11 +39,16 @@ jobs:
           }
         shell: pwsh
 
-      - name: Run iPlug2 SDK download script (if not cached)
+      - name: Run download-iplug-sdks.sh script (if SDK is not cached)
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         shell: msys2 {0}
         run: |
+          echo "Running download-iplug-sdks.sh to download SDKs"
           cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"
+          if [ ! -f "./download-iplug-sdks.sh" ]; then
+            echo "Error: download-iplug-sdks.sh not found."
+            exit 1
+          fi
           ./download-iplug-sdks.sh
 
       - name: Validate VST3 SDK structure
@@ -102,7 +107,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: iPlug2/Dependencies/IPlug/VST3_SDK
-          key: vst3-sdk-windows-v2
+          key: vst3-sdk-windows-v1
 
       - name: Set VST3 SDK environment variable
         run: |
