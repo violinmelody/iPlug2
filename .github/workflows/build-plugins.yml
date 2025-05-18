@@ -8,32 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  cache-vst3-sdk:
-    runs-on: ubuntu-latest
-    outputs:
-      vst3_sdk_cached: ${{ steps.cache-sdk.outputs.cache-hit }}
-    steps:
-      - name: Cache VST3 SDK
-        id: cache-sdk
-        uses: actions/cache@v3
-        with:
-          path: ${{ github.workspace }}/Dependencies/VST3_SDK
-          key: vst3-sdk-${{ runner.os }}-v1-${{ hashFiles('**/VST3_SDK/**') }}
-          restore-keys: |
-            vst3-sdk-${{ runner.os }}-v1-
-
-      - name: Download VST3 SDK
-        if: steps.cache-sdk.outputs.cache-hit != 'true'
-        run: |
-          echo "Downloading VST3 SDK..."
-          curl -L -o vst3sdk.zip https://www.steinberg.net/vst3sdk
-          mkdir -p ${{ github.workspace }}/Dependencies/VST3_SDK
-          unzip vst3sdk.zip -d ${{ github.workspace }}/Dependencies/VST3_SDK
-          echo "VST3 SDK downloaded and extracted successfully."
-        shell: bash
-
   generate-matrix:
-    needs: cache-vst3-sdk
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -52,7 +27,7 @@ jobs:
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   build:
-    needs: [cache-vst3-sdk, generate-matrix]
+    needs: [generate-matrix]
     runs-on: windows-latest
 
     strategy:
@@ -65,12 +40,29 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up MSBuild
-        uses: microsoft/setup-msbuild@v1.0.2
+      - name: Cache VST3 SDK (Windows)
+        id: cache-vst3
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}\Dependencies\VST3_SDK
+          key: vst3-sdk-windows-v1
+
+      - name: Download VST3 SDK (if not cached)
+        if: steps.cache-vst3.outputs.cache-hit != 'true'
+        run: |
+          echo "Downloading VST3 SDK..."
+          $url = "https://www.steinberg.net/vst3sdk"
+          $output = "vst3sdk.zip"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          $dest = "${{ github.workspace }}\Dependencies\VST3_SDK"
+          New-Item -ItemType Directory -Force -Path $dest
+          Expand-Archive -Path $output -DestinationPath $dest
+          echo "VST3 SDK downloaded and extracted to $dest"
+        shell: pwsh
 
       - name: Set VST3 SDK environment variable
         run: |
-          echo "VST3_SDK_PATH=${{ github.workspace }}\\Dependencies\\VST3_SDK" >> $env:GITHUB_ENV
+          echo "VST3_SDK_PATH=${{ github.workspace }}\Dependencies\VST3_SDK" >> $env:GITHUB_ENV
         shell: pwsh
 
       - name: Show VST3_SDK_PATH
@@ -88,6 +80,9 @@ jobs:
             exit 1
           }
         shell: pwsh
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v1.0.2
 
       - name: Restore NuGet packages
         run: |
