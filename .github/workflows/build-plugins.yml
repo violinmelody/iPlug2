@@ -8,6 +8,46 @@ on:
   workflow_dispatch:
 
 jobs:
+  cache-vst3-sdk:
+    runs-on: windows-latest
+    outputs:
+      vst3_sdk_cached: ${{ steps.cache-sdk.outputs.cache-hit }}
+    steps:
+      - name: Cache VST3 SDK
+        id: cache-sdk
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}\Dependencies\VST3_SDK
+          key: vst3-sdk-windows-v1
+
+      - name: Download VST3 SDK (if not cached)
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        run: |
+          echo "Downloading VST3 SDK..."
+          $url = "https://www.steinberg.net/vst3sdk"
+          $output = "vst3sdk.zip"
+          Invoke-WebRequest -Uri $url -OutFile $output
+          $dest = "${{ github.workspace }}\Dependencies\VST3_SDK"
+          New-Item -ItemType Directory -Force -Path $dest
+          Expand-Archive -Path $output -DestinationPath $dest
+          echo "VST3 SDK downloaded and extracted to $dest"
+        shell: pwsh
+
+      - name: Validate VST3 SDK
+        run: |
+          $sdkPath = "${{ github.workspace }}\Dependencies\VST3_SDK"
+          if (!(Test-Path $sdkPath)) {
+            Write-Host "Error: VST3 SDK path not found."
+            exit 1
+          }
+          $header = Join-Path $sdkPath "pluginterfaces\vst\ivstaudioprocessor.h"
+          if (!(Test-Path $header)) {
+            Write-Host "Error: Expected SDK file not found."
+            exit 1
+          }
+          Write-Host "VST3 SDK is valid."
+        shell: pwsh
+
   generate-matrix:
     runs-on: ubuntu-latest
     outputs:
@@ -27,9 +67,8 @@ jobs:
           echo "matrix=$matrix" >> $GITHUB_OUTPUT
 
   build:
-    needs: [generate-matrix]
+    needs: [cache-vst3-sdk, generate-matrix]
     runs-on: windows-latest
-
     strategy:
       fail-fast: false
       matrix:
@@ -40,42 +79,20 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Cache VST3 SDK (Windows)
-        id: cache-vst3
+      - name: Restore cached VST3 SDK
         uses: actions/cache@v3
         with:
           path: ${{ github.workspace }}\Dependencies\VST3_SDK
           key: vst3-sdk-windows-v1
-
-      - name: Download VST3 SDK (if not cached)
-        if: steps.cache-vst3.outputs.cache-hit != 'true'
-        run: |
-          echo "Downloading VST3 SDK..."
-          $url = "https://www.steinberg.net/vst3sdk"
-          $output = "vst3sdk.zip"
-          Invoke-WebRequest -Uri $url -OutFile $output
-          $dest = "${{ github.workspace }}\Dependencies\VST3_SDK"
-          New-Item -ItemType Directory -Force -Path $dest
-          Expand-Archive -Path $output -DestinationPath $dest
-          echo "VST3 SDK downloaded and extracted to $dest"
-        shell: pwsh
 
       - name: Set VST3 SDK environment variable
         run: |
           echo "VST3_SDK_PATH=${{ github.workspace }}\Dependencies\VST3_SDK" >> $env:GITHUB_ENV
         shell: pwsh
 
-      - name: Show VST3_SDK_PATH
+      - name: Verify VST3 SDK exists
         run: |
-          echo "VST3_SDK_PATH is: $env:VST3_SDK_PATH"
-        shell: pwsh
-
-      - name: List contents of VST3 SDK directory
-        run: |
-          if (Test-Path $env:VST3_SDK_PATH) {
-            echo "Contents of VST3 SDK:"
-            Get-ChildItem -Recurse -Path $env:VST3_SDK_PATH
-          } else {
+          if (!(Test-Path $env:VST3_SDK_PATH)) {
             echo "VST3 SDK directory not found at path: $env:VST3_SDK_PATH"
             exit 1
           }
