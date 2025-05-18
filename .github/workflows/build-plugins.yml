@@ -59,6 +59,15 @@ jobs:
       - name: Validate VST3 SDK structure
         run: |
           $sdkPath = "${{ github.workspace }}\Dependencies\IPlug\VST3_SDK"  # Corrected path
+          echo "Validating SDK structure in path: $sdkPath"
+          
+          # Debug: Check if the path exists
+          if (!(Test-Path $sdkPath)) {
+            Write-Host "Error: VST3 SDK directory not found at path: $sdkPath"
+            exit 1
+          }
+
+          # Validate structure
           $mustExist = @(
             "base/source"
             "base/thread"
