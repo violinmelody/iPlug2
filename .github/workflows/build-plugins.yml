@@ -28,8 +28,8 @@ jobs:
           echo "Running download-vst3-sdk.sh to download SDKs"
           echo "Current workspace: ${{ github.workspace }}"  # Debugging the workspace path
           
-          # Correct path to the 'IPlug' folder, handling extra 'iPlug2' folder
-          cd "${{ github.workspace }}\iPlug2\Dependencies\IPlug"  # Correct path
+          # Fix for nested directory issue: Directly use the correct relative path
+          cd "${{ github.workspace }}/iPlug2/Dependencies/IPlug"  # Correct directory reference
 
           # Verify that the script exists before running it
           if [ ! -f "./download-vst3-sdk.sh" ]; then
@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
           
-          chmod +x ./download-vst3-sdk.sh  # Make sure the script is executable
+          chmod +x ./download-vst3-sdk.sh  # Ensure script is executable
           ./download-vst3-sdk.sh  # Run the script
         shell: bash
 
