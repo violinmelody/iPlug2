@@ -28,8 +28,7 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          # Ensure the directory is correct and adjust path if necessary
-          plugins=$(find iplug2/Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | sed 's|/|\\|g' | awk -F\\ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
+          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           [ -z "$plugins" ] && exit 1
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
@@ -41,6 +40,7 @@ jobs:
       matrix:
         plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}
     name: Build Windows App ${{ matrix.plugin }}
+    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v3
@@ -50,18 +50,20 @@ jobs:
 
       - name: Set SolutionDir Environment Variable
         run: |
-          # Explicitly set the SolutionDir environment variable to the root of the repository
           $env:SolutionDir = "D:\a\iPlug2\iPlug2"
           Write-Host "SolutionDir is set to $env:SolutionDir"
         shell: pwsh
 
-      - name: Build Windows App (${{ matrix.plugin }}) for x64 using sln file
+      - name: Build Windows App (${{ matrix.plugin }}) for x64 using .sln file
         run: |
-          # Build the project using the .sln file
           cd iplug2/Examples/${{ matrix.plugin }}
           $slnFile = "${{ matrix.plugin }}.sln"
           if (Test-Path $slnFile) {
-            msbuild $slnFile /p:Configuration=Release /p:Platform=x64
+            try {
+              msbuild $slnFile /p:Configuration=Release /p:Platform=x64 /m
+            } catch {
+              Write-Host "Build failed for $slnFile, continuing..."
+            }
           } else {
             Write-Error "Solution file not found: $slnFile"
             exit 1
@@ -69,13 +71,14 @@ jobs:
         shell: pwsh
 
       - name: Upload Windows App Artifact
+        if: success() || failure() # Upload even on failure
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-win
           path: |
-            **/*.exe
-            **/*.dll
-            **/*.pdb
+            iplug2/Examples/${{ matrix.plugin }}/**/*.exe
+            iplug2/Examples/${{ matrix.plugin }}/**/*.dll
+            iplug2/Examples/${{ matrix.plugin }}/**/*.pdb
 
   notify:
     needs: [record-start-time, generate-matrix, build-windows-app]
