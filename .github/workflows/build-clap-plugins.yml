@@ -24,6 +24,8 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive  # Ensures that submodules (like CLAP SDK) are included
 
       - name: Generate plugin matrix from .sln files
         id: set-matrix
@@ -43,6 +45,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: recursive  # Ensures CLAP SDK is checked out
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
