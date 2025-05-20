@@ -66,10 +66,17 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
 
-      - name: Fix path in .vcxproj for IPlugEffect
+      - name: Debug - Check contents of Examples/IPlugEffect/projects/
         run: |
-          # Fix the import path in .vcxproj to use relative path to config folder
-          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
+          ls -la Examples/${{ matrix.plugin }}/projects
+
+      - name: Set Repository Root Path
+        run: echo "REPO_ROOT=$(pwd)" >> $GITHUB_ENV
+
+      - name: Fix path in .vcxproj for IPlugEffect (Absolute Path)
+        run: |
+          # Use absolute path for IPlugEffect-win.props
+          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\${REPO_ROOT}\\Examples\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
 
       - name: Build CLAP plugin (${{ matrix.plugin }})
         run: |
