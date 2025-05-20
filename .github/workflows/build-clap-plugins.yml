@@ -40,12 +40,16 @@ jobs:
 
       - name: Download CLAP SDK
         run: |
+          # Remove any old directories if they exist
           rm -rf CLAP_SDK
           rm -rf CLAP_HELPERS
+
+          # Clone the CLAP SDK and helpers into the correct directories
           git clone https://github.com/free-audio/clap.git CLAP_SDK
           git clone https://github.com/free-audio/clap-helpers.git CLAP_HELPERS
-          git -C CLAP_SDK checkout -- ./readme.txt
-          git -C CLAP_HELPERS checkout -- ./readme.txt
+
+          # No need to checkout readme.txt since it might not exist in the repo
+          # Remove the line git -C CLAP_SDK checkout -- ./readme.txt and git -C CLAP_HELPERS checkout -- ./readme.txt
 
   build:
     needs: [record-start-time, generate-matrix, setup-clap]
@@ -87,13 +91,6 @@ jobs:
           name: ${{ matrix.plugin }}-clap
           path: |
             **/*.clap
-
-  debug:
-    runs-on: windows-latest
-    steps:
-      - name: Debug - Check contents of Examples/IPlugControls/projects/
-        run: |
-          Get-ChildItem Examples/IPlugControls/projects -Force
 
   notify:
     needs: [record-start-time, generate-matrix, build]
