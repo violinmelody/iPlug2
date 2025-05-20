@@ -59,8 +59,8 @@ jobs:
 
       - name: Check if .vcxproj file exists
         run: |
-          # Now we're compiling an app, so the .vcxproj file shouldn't have the '-clap' suffix
-          $vcxprojPath = "Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}.vcxproj"
+          # Adjusting the file name to account for "-app" in the project name
+          $vcxprojPath = "Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj"
           if (-Not (Test-Path $vcxprojPath)) {
             Write-Error "VCXProj file not found at $vcxprojPath"
             exit 1
@@ -71,7 +71,7 @@ jobs:
       - name: Fix path to IPlugEffect-win.props in the .vcxproj file using the updated SolutionDir
         run: |
           # Fix the path in the .vcxproj file
-          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}.vcxproj
+          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj
         shell: bash
 
       - name: Run prebuild-win.bat
@@ -83,7 +83,7 @@ jobs:
       - name: Build Windows App (${{ matrix.plugin }}) for x64
         run: |
           cd Examples/${{ matrix.plugin }}/projects
-          $projName = "${{ matrix.plugin }}.vcxproj"  # No '-clap' in the project name
+          $projName = "${{ matrix.plugin }}-app.vcxproj"  # Adjusted to use the "-app" suffix
           if (Test-Path $projName) {
             msbuild $projName /p:Configuration=Release /p:Platform=x64
           } else {
