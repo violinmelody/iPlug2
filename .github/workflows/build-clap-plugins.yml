@@ -68,7 +68,7 @@ jobs:
 
       - name: Fix path in .vcxproj for IPlugEffect
         run: |
-          # Ensure that the path to IPlugEffect-win.props is correctly updated
+          # Fix the import path in .vcxproj to use relative path to config folder
           sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
 
       - name: Build CLAP plugin (${{ matrix.plugin }})
