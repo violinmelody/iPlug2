@@ -74,12 +74,6 @@ jobs:
           sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj
         shell: bash
 
-      - name: Run prebuild-win.bat
-        run: |
-          # Run prebuild script with the correct parameters for app
-          & "Examples/${{ matrix.plugin }}/projects/scripts/prebuild-win.bat" ".app" "IPlugEffect" "x64" "D:\a\iPlug2\iPlug2\Examples\IPlugEffect\projects\build-win\app\x64\Release\IPlugEffect.app" "D:\a\iPlug2\iPlug2\Examples\IPlugEffect\projects\build-win\app\x64\Release\"
-        shell: pwsh
-
       - name: Build Windows App (${{ matrix.plugin }}) for x64
         run: |
           cd Examples/${{ matrix.plugin }}/projects
