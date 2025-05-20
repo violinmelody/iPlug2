@@ -1,4 +1,4 @@
-name: Build Windows Application
+name: Build Windows Application for iPlug2
 
 on:
   push:
@@ -39,7 +39,7 @@ jobs:
       fail-fast: false
       matrix:
         plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}
-    name: Build Windows App ${{ matrix.plugin }}
+    name: Build Windows App for iPlug2 Plugin ${{ matrix.plugin }}
 
     steps:
       - uses: actions/checkout@v3
@@ -52,7 +52,7 @@ jobs:
 
       - name: Set SolutionDir Environment Variable
         run: |
-          # Set the SolutionDir environment variable to the root of the project
+          # Explicitly set the SolutionDir environment variable to the root of the iPlug2 repository
           $env:SolutionDir = "D:\a\iPlug2\iPlug2"
           Write-Host "SolutionDir is set to $env:SolutionDir"
         shell: pwsh
@@ -63,10 +63,25 @@ jobs:
           sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
         shell: bash
 
+      - name: Check if prebuild-win.bat exists
+        run: |
+          # Check if the prebuild script exists in the expected location
+          if (-Not (Test-Path "Examples/${{ matrix.plugin }}/projects/scripts/prebuild-win.bat")) {
+            Write-Error "prebuild-win.bat script not found!"
+            exit 1
+          }
+        shell: pwsh
+
+      - name: Run prebuild-win.bat
+        run: |
+          # Run prebuild script with the correct parameters
+          & "Examples/${{ matrix.plugin }}/projects/scripts/prebuild-win.bat" ".app" "IPlugEffect" "x64" "D:\a\iPlug2\iPlug2\Examples\IPlugEffect\projects\build-win\app\x64\Release\IPlugEffect.app" "D:\a\iPlug2\iPlug2\Examples\IPlugEffect\projects\build-win\app\x64\Release\"
+        shell: pwsh
+
       - name: Build Windows App (${{ matrix.plugin }}) for x64
         run: |
           cd Examples/${{ matrix.plugin }}/projects
-          $projName = "${{ matrix.plugin }}-clap.vcxproj"
+          $projName = "${{ matrix.plugin }}-app.vcxproj"
           if (Test-Path $projName) {
             msbuild $projName /p:Configuration=Release /p:Platform=x64
           } else {
