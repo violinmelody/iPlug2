@@ -38,6 +38,9 @@ jobs:
       - name: Checkout iPlug2 repository
         uses: actions/checkout@v3
 
+      - name: Check existence of download-clap-sdks.sh
+        run: ls Dependencies/IPlug/download-clap-sdks.sh
+
       - name: Download CLAP SDK
         run: |
           bash Dependencies/IPlug/download-clap-sdks.sh
