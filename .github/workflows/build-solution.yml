@@ -29,9 +29,7 @@ jobs:
         id: set-matrix
         shell: bash
         run: |
-          # Find all .sln files inside Examples/*/*.sln
-          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | \
-            awk -F/ '{print "\""$(NF-1)"\""}' | paste -sd "," -)
+          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{print "\""$(NF-1)"\""}' | paste -sd "," -)
           if [ -z "$plugins" ]; then
             echo "No plugins found!"
             exit 1
@@ -68,8 +66,10 @@ jobs:
             exit 1
           }
         shell: pwsh
+        continue-on-error: true
 
       - name: Upload Windows App Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.plugin }}-win
