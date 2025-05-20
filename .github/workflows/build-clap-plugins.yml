@@ -38,12 +38,19 @@ jobs:
       - name: Checkout iPlug2 repository
         uses: actions/checkout@v3
 
-      - name: Check existence of download-clap-sdks.sh
-        run: ls Dependencies/IPlug/download-clap-sdks.sh
-
       - name: Download CLAP SDK
         run: |
-          bash Dependencies/IPlug/download-clap-sdks.sh
+          # Remove any old directories if they exist
+          rm -rf CLAP_SDK
+          rm -rf CLAP_HELPERS
+
+          # Clone the CLAP SDK and helpers into the correct directories
+          git clone https://github.com/free-audio/clap.git CLAP_SDK
+          git clone https://github.com/free-audio/clap-helpers.git CLAP_HELPERS
+
+          # Checkout the required files in case they are missing
+          git -C CLAP_SDK checkout -- ./readme.txt
+          git -C CLAP_HELPERS checkout -- ./readme.txt
 
   build:
     needs: [record-start-time, generate-matrix, setup-clap]
