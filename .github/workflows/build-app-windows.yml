@@ -28,7 +28,8 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          plugins=$(find iplug2/Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
+          # Adjusting the find command to start from the correct directory.
+          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           [ -z "$plugins" ] && exit 1
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
