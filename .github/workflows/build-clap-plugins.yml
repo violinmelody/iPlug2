@@ -52,10 +52,11 @@ jobs:
 
       - name: Build CLAP plugin (${{ matrix.plugin }})
         run: |
+          $solutionDir = "$(Resolve-Path Examples/${{ matrix.plugin }})"
           cd Examples/${{ matrix.plugin }}/projects
           $projName = "${{ matrix.plugin }}-clap.vcxproj"
           if (Test-Path $projName) {
-            msbuild $projName /p:Configuration=Release /p:Platform=x64
+            msbuild $projName /p:Configuration=Release /p:Platform=x64 /p:SolutionDir="$solutionDir\"
           } else {
             echo "Project not found: $projName"
             exit 1
