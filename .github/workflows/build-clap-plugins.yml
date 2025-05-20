@@ -8,16 +8,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  download-clap-sdks:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-
-      - name: Download CLAP SDK
-        run: |
-          bash Dependencies/IPlug/download-clap-sdks.sh || true
-
   record-start-time:
     runs-on: windows-latest
     outputs:
@@ -42,8 +32,18 @@ jobs:
           [ -z "$plugins" ] && exit 1
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
+  setup-clap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout iPlug2 repository
+        uses: actions/checkout@v3
+
+      - name: Download CLAP SDK
+        run: |
+          bash Dependencies/IPlug/download-clap-sdks.sh
+
   build:
-    needs: [record-start-time, generate-matrix, download-clap-sdks]
+    needs: [record-start-time, generate-matrix, setup-clap]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -59,6 +59,10 @@ jobs:
 
       - name: Restore NuGet packages
         run: nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
+
+      - name: Fix path in .vcxproj for IPlugEffect
+        run: |
+          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
 
       - name: Build CLAP plugin (${{ matrix.plugin }})
         run: |
