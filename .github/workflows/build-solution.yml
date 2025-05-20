@@ -1,4 +1,4 @@
-name: Build Solution
+name: Build Windows Application
 
 on:
   push:
@@ -28,7 +28,8 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          plugins=$(find iplug2/Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
+          # Ensure the directory is correct and adjust path if necessary
+          plugins=$(find iplug2/Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | sed 's|/|\\|g' | awk -F\\ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           [ -z "$plugins" ] && exit 1
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
@@ -54,34 +55,16 @@ jobs:
           Write-Host "SolutionDir is set to $env:SolutionDir"
         shell: pwsh
 
-      - name: Check if .sln file exists
+      - name: Build Windows App (${{ matrix.plugin }}) for x64 using sln file
         run: |
-          # Check if the .sln file exists
-          $slnPath = "iplug2/Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln"
-          if (-Not (Test-Path $slnPath)) {
-            Write-Error "Solution file not found at $slnPath"
-            exit 1
-          }
-          Write-Host "Found .sln file: $slnPath"
-        shell: pwsh
-
-      - name: Build Windows App (${{ matrix.plugin }}) for x64
-        run: |
-          # Navigate to the project directory and build using MSBuild
+          # Build the project using the .sln file
           cd iplug2/Examples/${{ matrix.plugin }}
-          msbuild ${matrix.plugin}.sln /p:Configuration=Release /p:Platform=x64
-        shell: pwsh
-
-      - name: Collect Build Status
-        id: collect-status
-        run: |
-          # Check if MSBuild succeeded or failed and save the result
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Build succeeded for ${{ matrix.plugin }}"
-            echo "Build succeeded for ${{ matrix.plugin }}" >> $env:GITHUB_OUTPUT
+          $slnFile = "${{ matrix.plugin }}.sln"
+          if (Test-Path $slnFile) {
+            msbuild $slnFile /p:Configuration=Release /p:Platform=x64
           } else {
-            Write-Host "Build failed for ${{ matrix.plugin }}"
-            echo "Build failed for ${{ matrix.plugin }}" >> $env:GITHUB_OUTPUT
+            Write-Error "Solution file not found: $slnFile"
+            exit 1
           }
         shell: pwsh
 
@@ -90,9 +73,9 @@ jobs:
         with:
           name: ${{ matrix.plugin }}-win
           path: |
-            iplug2/Examples/${{ matrix.plugin }}/**/*.exe
-            iplug2/Examples/${{ matrix.plugin }}/**/*.dll
-            iplug2/Examples/${{ matrix.plugin }}/**/*.pdb
+            **/*.exe
+            **/*.dll
+            **/*.pdb
 
   notify:
     needs: [record-start-time, generate-matrix, build-windows-app]
@@ -121,12 +104,6 @@ jobs:
           if [[ "$STATUS_TIME" != "success" || "$STATUS_MATRIX" != "success" || "$STATUS_BUILD" != "success" ]]; then
             overall_status=":x: FAILED"
           fi
-
-          # Output the status of the build for each plugin
-          echo "Build status for each plugin:"
-          for plugin in ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}; do
-            echo "$plugin: ${{ needs.build-windows-app.outputs['Build succeeded for $plugin'] }}"
-          done
 
           url="https://github.com/${REPO}/actions/runs/${RUN_ID}"
           message="**${WORKFLOW}** on branch \`${BRANCH}\` finished with status: **${overall_status}** in ${minutes}m ${seconds}s\n[View Logs](${url})"
