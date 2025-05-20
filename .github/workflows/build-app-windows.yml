@@ -28,7 +28,7 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
+          plugins=$(find iplug2/Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           [ -z "$plugins" ] && exit 1
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
@@ -48,7 +48,9 @@ jobs:
         uses: microsoft/setup-msbuild@v1.0.2
 
       - name: Restore NuGet packages
-        run: nuget restore iplug2/Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
+        run: |
+          cd iplug2/Examples/${{ matrix.plugin }}
+          nuget restore ${matrix.plugin}.sln
 
       - name: Set SolutionDir Environment Variable
         run: |
@@ -60,7 +62,7 @@ jobs:
       - name: Check if .vcxproj file exists
         run: |
           # Adjusting the file name to account for "-app" in the project name
-          $vcxprojPath = "iplug2/Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj"
+          $vcxprojPath = "Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj"
           if (-Not (Test-Path $vcxprojPath)) {
             Write-Error "VCXProj file not found at $vcxprojPath"
             exit 1
@@ -71,20 +73,17 @@ jobs:
       - name: Fix path to IPlugEffect-win.props in the .vcxproj file using the updated SolutionDir
         run: |
           # Fix the path in the .vcxproj file
-          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' iplug2/Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj
+          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj
         shell: bash
 
       - name: Build Windows App (${{ matrix.plugin }}) for x64
         run: |
-          cd iplug2/Examples/${{ matrix.plugin }}/projects
-          $solutionPath = "iplug2/Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln"
+          cd Examples/${{ matrix.plugin }}/projects
           $projName = "${{ matrix.plugin }}-app.vcxproj"  # Adjusted to use the "-app" suffix
-          
-          if (Test-Path $solutionPath) {
-            # Use MSBuild to build the project from the solution
-            msbuild $solutionPath /t:$projName /p:Configuration=Release /p:Platform=x64
+          if (Test-Path $projName) {
+            msbuild $projName /p:Configuration=Release /p:Platform=x64
           } else {
-            echo "Solution not found: $solutionPath"
+            echo "Project not found: $projName"
             exit 1
           }
         shell: pwsh
