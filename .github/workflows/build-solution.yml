@@ -27,9 +27,15 @@ jobs:
 
       - name: Generate plugin matrix from .sln files
         id: set-matrix
+        shell: bash
         run: |
-          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
-          [ -z "$plugins" ] && exit 1
+          # Find all .sln files inside Examples/*/*.sln
+          plugins=$(find Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | \
+            awk -F/ '{print "\""$(NF-1)"\""}' | paste -sd "," -)
+          if [ -z "$plugins" ]; then
+            echo "No plugins found!"
+            exit 1
+          fi
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
   build-windows-app:
@@ -47,15 +53,9 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Set SolutionDir Environment Variable
-        run: |
-          $env:SolutionDir = "D:\a\iPlug2\iPlug2"
-          Write-Host "SolutionDir is set to $env:SolutionDir"
-        shell: pwsh
-
       - name: Build Windows App (${{ matrix.plugin }}) for x64 using .sln file
+        working-directory: ${{ github.workspace }}/Examples/${{ matrix.plugin }}
         run: |
-          cd Examples/${{ matrix.plugin }}
           $slnFile = "${{ matrix.plugin }}.sln"
           if (Test-Path $slnFile) {
             try {
@@ -74,9 +74,9 @@ jobs:
         with:
           name: ${{ matrix.plugin }}-win
           path: |
-            **/*.exe
-            **/*.dll
-            **/*.pdb
+            Examples/${{ matrix.plugin }}/**/*.exe
+            Examples/${{ matrix.plugin }}/**/*.dll
+            Examples/${{ matrix.plugin }}/**/*.pdb
 
   notify:
     needs: [record-start-time, generate-matrix, build-windows-app]
