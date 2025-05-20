@@ -40,13 +40,12 @@ jobs:
 
       - name: Download CLAP SDK
         run: |
-          # Remove any old directories if they exist
           rm -rf CLAP_SDK
           rm -rf CLAP_HELPERS
-
-          # Clone the CLAP SDK and helpers into the correct directories
           git clone https://github.com/free-audio/clap.git CLAP_SDK
           git clone https://github.com/free-audio/clap-helpers.git CLAP_HELPERS
+          git -C CLAP_SDK checkout -- ./readme.txt
+          git -C CLAP_HELPERS checkout -- ./readme.txt
 
   build:
     needs: [record-start-time, generate-matrix, setup-clap]
@@ -66,17 +65,9 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
 
-      - name: Debug - Check contents of Examples/IPlugEffect/projects/
+      - name: Fix path in .vcxproj for IPlugEffect
         run: |
-          ls -la Examples/${{ matrix.plugin }}/projects
-
-      - name: Set Repository Root Path
-        run: echo "REPO_ROOT=$(pwd)" >> $GITHUB_ENV
-
-      - name: Fix path in .vcxproj for IPlugEffect (Absolute Path)
-        run: |
-          # Use absolute path for IPlugEffect-win.props
-          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\${REPO_ROOT}\\Examples\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
+          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
 
       - name: Build CLAP plugin (${{ matrix.plugin }})
         run: |
@@ -96,6 +87,13 @@ jobs:
           name: ${{ matrix.plugin }}-clap
           path: |
             **/*.clap
+
+  debug:
+    runs-on: windows-latest
+    steps:
+      - name: Debug - Check contents of Examples/IPlugControls/projects/
+        run: |
+          Get-ChildItem Examples/IPlugControls/projects -Force
 
   notify:
     needs: [record-start-time, generate-matrix, build]
