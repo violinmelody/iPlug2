@@ -39,7 +39,7 @@ jobs:
       fail-fast: false
       matrix:
         plugin: ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}
-    name: Build Windows App for iPlug2 Plugin ${{ matrix.plugin }}
+    name: Build Windows App ${{ matrix.plugin }}
 
     steps:
       - uses: actions/checkout@v3
@@ -52,36 +52,38 @@ jobs:
 
       - name: Set SolutionDir Environment Variable
         run: |
-          # Explicitly set the SolutionDir environment variable to the root of the iPlug2 repository
+          # Explicitly set the SolutionDir environment variable to the root of the repository
           $env:SolutionDir = "D:\a\iPlug2\iPlug2"
           Write-Host "SolutionDir is set to $env:SolutionDir"
         shell: pwsh
 
-      - name: Fix path in .vcxproj for IPlugEffect
+      - name: Check if .vcxproj file exists
         run: |
-          # Fix path to IPlugEffect-win.props in the .vcxproj file using the updated SolutionDir
-          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
-        shell: bash
-
-      - name: Check if prebuild-win.bat exists
-        run: |
-          # Check if the prebuild script exists in the expected location
-          if (-Not (Test-Path "Examples/${{ matrix.plugin }}/projects/scripts/prebuild-win.bat")) {
-            Write-Error "prebuild-win.bat script not found!"
+          # Now we're compiling an app, so the .vcxproj file shouldn't have the '-clap' suffix
+          $vcxprojPath = "Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}.vcxproj"
+          if (-Not (Test-Path $vcxprojPath)) {
+            Write-Error "VCXProj file not found at $vcxprojPath"
             exit 1
           }
+          Write-Host "Found .vcxproj file: $vcxprojPath"
         shell: pwsh
+
+      - name: Fix path to IPlugEffect-win.props in the .vcxproj file using the updated SolutionDir
+        run: |
+          # Fix the path in the .vcxproj file
+          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}.vcxproj
+        shell: bash
 
       - name: Run prebuild-win.bat
         run: |
-          # Run prebuild script with the correct parameters
+          # Run prebuild script with the correct parameters for app
           & "Examples/${{ matrix.plugin }}/projects/scripts/prebuild-win.bat" ".app" "IPlugEffect" "x64" "D:\a\iPlug2\iPlug2\Examples\IPlugEffect\projects\build-win\app\x64\Release\IPlugEffect.app" "D:\a\iPlug2\iPlug2\Examples\IPlugEffect\projects\build-win\app\x64\Release\"
         shell: pwsh
 
       - name: Build Windows App (${{ matrix.plugin }}) for x64
         run: |
           cd Examples/${{ matrix.plugin }}/projects
-          $projName = "${{ matrix.plugin }}-app.vcxproj"
+          $projName = "${{ matrix.plugin }}.vcxproj"  # No '-clap' in the project name
           if (Test-Path $projName) {
             msbuild $projName /p:Configuration=Release /p:Platform=x64
           } else {
