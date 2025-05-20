@@ -77,11 +77,14 @@ jobs:
       - name: Build Windows App (${{ matrix.plugin }}) for x64
         run: |
           cd Examples/${{ matrix.plugin }}/projects
+          $solutionPath = "Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln"
           $projName = "${{ matrix.plugin }}-app.vcxproj"  # Adjusted to use the "-app" suffix
-          if (Test-Path $projName) {
-            msbuild $projName /p:Configuration=Release /p:Platform=x64
+          
+          if (Test-Path $solutionPath) {
+            # Use MSBuild to build the project from the solution
+            msbuild $solutionPath /t:$projName /p:Configuration=Release /p:Platform=x64
           } else {
-            echo "Project not found: $projName"
+            echo "Solution not found: $solutionPath"
             exit 1
           }
         shell: pwsh
