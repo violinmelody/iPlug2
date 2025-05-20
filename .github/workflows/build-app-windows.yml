@@ -1,4 +1,4 @@
-name: Build Windows Application for iPlug2
+name: Build Windows Application
 
 on:
   push:
