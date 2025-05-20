@@ -48,10 +48,6 @@ jobs:
           git clone https://github.com/free-audio/clap.git CLAP_SDK
           git clone https://github.com/free-audio/clap-helpers.git CLAP_HELPERS
 
-          # Checkout the required files in case they are missing
-          git -C CLAP_SDK checkout -- ./readme.txt
-          git -C CLAP_HELPERS checkout -- ./readme.txt
-
   build:
     needs: [record-start-time, generate-matrix, setup-clap]
     runs-on: windows-latest
