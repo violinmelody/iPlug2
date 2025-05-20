@@ -1,4 +1,4 @@
-name: Build Windows Application
+name: Build Solution
 
 on:
   push:
@@ -28,8 +28,7 @@ jobs:
       - name: Generate plugin matrix from .sln files
         id: set-matrix
         run: |
-          # Adjusting path if the Examples folder is at the root level
-          plugins=$(find Examples -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
+          plugins=$(find iplug2/Examples -maxdepth 2 -mindepth 2 -type f -name "*.sln" | awk -F/ '{ if ($(NF) == $(NF-1) ".sln") print "\""$(NF-1)"\"" }' | paste -sd "," -)
           [ -z "$plugins" ] && exit 1
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
@@ -48,9 +47,6 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
 
-      - name: Restore NuGet packages
-        run: nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
-
       - name: Set SolutionDir Environment Variable
         run: |
           # Explicitly set the SolutionDir environment variable to the root of the repository
@@ -58,32 +54,34 @@ jobs:
           Write-Host "SolutionDir is set to $env:SolutionDir"
         shell: pwsh
 
-      - name: Check if .vcxproj file exists
+      - name: Check if .sln file exists
         run: |
-          # Adjusting the file name to account for "-app" in the project name
-          $vcxprojPath = "Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj"
-          if (-Not (Test-Path $vcxprojPath)) {
-            Write-Error "VCXProj file not found at $vcxprojPath"
+          # Check if the .sln file exists
+          $slnPath = "iplug2/Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln"
+          if (-Not (Test-Path $slnPath)) {
+            Write-Error "Solution file not found at $slnPath"
             exit 1
           }
-          Write-Host "Found .vcxproj file: $vcxprojPath"
+          Write-Host "Found .sln file: $slnPath"
         shell: pwsh
-
-      - name: Fix path to IPlugEffect-win.props in the .vcxproj file using the updated SolutionDir
-        run: |
-          # Fix the path in the .vcxproj file
-          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/${{ matrix.plugin }}-app.vcxproj
-        shell: bash
 
       - name: Build Windows App (${{ matrix.plugin }}) for x64
         run: |
-          cd Examples/${{ matrix.plugin }}/projects
-          $projName = "${{ matrix.plugin }}-app.vcxproj"  # Adjusted to use the "-app" suffix
-          if (Test-Path $projName) {
-            msbuild $projName /p:Configuration=Release /p:Platform=x64
+          # Navigate to the project directory and build using MSBuild
+          cd iplug2/Examples/${{ matrix.plugin }}
+          msbuild ${matrix.plugin}.sln /p:Configuration=Release /p:Platform=x64
+        shell: pwsh
+
+      - name: Collect Build Status
+        id: collect-status
+        run: |
+          # Check if MSBuild succeeded or failed and save the result
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Build succeeded for ${{ matrix.plugin }}"
+            echo "Build succeeded for ${{ matrix.plugin }}" >> $env:GITHUB_OUTPUT
           } else {
-            echo "Project not found: $projName"
-            exit 1
+            Write-Host "Build failed for ${{ matrix.plugin }}"
+            echo "Build failed for ${{ matrix.plugin }}" >> $env:GITHUB_OUTPUT
           }
         shell: pwsh
 
@@ -92,9 +90,9 @@ jobs:
         with:
           name: ${{ matrix.plugin }}-win
           path: |
-            **/*.exe
-            **/*.dll
-            **/*.pdb
+            iplug2/Examples/${{ matrix.plugin }}/**/*.exe
+            iplug2/Examples/${{ matrix.plugin }}/**/*.dll
+            iplug2/Examples/${{ matrix.plugin }}/**/*.pdb
 
   notify:
     needs: [record-start-time, generate-matrix, build-windows-app]
@@ -123,6 +121,12 @@ jobs:
           if [[ "$STATUS_TIME" != "success" || "$STATUS_MATRIX" != "success" || "$STATUS_BUILD" != "success" ]]; then
             overall_status=":x: FAILED"
           fi
+
+          # Output the status of the build for each plugin
+          echo "Build status for each plugin:"
+          for plugin in ${{ fromJson(needs.generate-matrix.outputs.matrix).plugin }}; do
+            echo "$plugin: ${{ needs.build-windows-app.outputs['Build succeeded for $plugin'] }}"
+          done
 
           url="https://github.com/${REPO}/actions/runs/${RUN_ID}"
           message="**${WORKFLOW}** on branch \`${BRANCH}\` finished with status: **${overall_status}** in ${minutes}m ${seconds}s\n[View Logs](${url})"
