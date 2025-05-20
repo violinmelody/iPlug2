@@ -69,9 +69,18 @@ jobs:
       - name: Restore NuGet packages
         run: nuget restore Examples/${{ matrix.plugin }}/${{ matrix.plugin }}.sln
 
+      - name: Set SolutionDir Environment Variable
+        run: |
+          # Set the SolutionDir environment variable to the root of the project
+          $env:SolutionDir = "D:\a\iPlug2\iPlug2"
+          Write-Host "SolutionDir is set to $env:SolutionDir"
+        shell: pwsh
+
       - name: Fix path in .vcxproj for IPlugEffect
         run: |
-          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
+          # Fix path to IPlugEffect-win.props in the .vcxproj file using the updated SolutionDir
+          sed -i 's|<Import Project="\$(SolutionDir)\\config\\IPlugEffect-win.props" />|<Import Project="\$(SolutionDir)\\..\\config\\IPlugEffect-win.props" />|' Examples/${{ matrix.plugin }}/projects/IPlugEffect-clap.vcxproj
+        shell: bash
 
       - name: Build CLAP plugin (${{ matrix.plugin }})
         run: |
