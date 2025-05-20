@@ -8,6 +8,16 @@ on:
   workflow_dispatch:
 
 jobs:
+  download-clap-sdks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download CLAP SDK
+        run: |
+          bash Dependencies/IPlug/download-clap-sdks.sh || true
+
   record-start-time:
     runs-on: windows-latest
     outputs:
@@ -33,7 +43,7 @@ jobs:
           echo "matrix={\"plugin\":[${plugins}]}" >> $GITHUB_OUTPUT
 
   build:
-    needs: [record-start-time, generate-matrix]
+    needs: [record-start-time, generate-matrix, download-clap-sdks]
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -43,11 +53,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-
-      - name: Download CLAP SDK
-        run: |
-          # Navigate to the script location
-          bash Dependencies/IPlug/download-clap-sdks.sh
 
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v1.0.2
